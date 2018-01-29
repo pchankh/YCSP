@@ -44,10 +44,10 @@ function initializeInitialHeights(randomInitialHeights, R, S, H)
             println("The number of stacks was automatically changed from ", S, " to ", size(heightsInitial,2));
             S = size(heightsInitial,2);
         end
-        # if H != maximum(heightsInitial)
-        #     println("The number of tiers was automatically changed from ", H, " to ", maximum(heightsInitial));
-        #     H = maximum(heightsInitial);
-        # end
+        if H != maximum(heightsInitial)
+            println("The number of tiers was automatically changed from ", H, " to ", maximum(heightsInitial));
+            H = maximum(heightsInitial);
+        end
     end
     return (heightsInitial, R, S, H);
 end
@@ -270,7 +270,6 @@ function randomRetrievalFun(n,heightsInitial,IOPointsPosition)
     toRetrieveList = sort(shuffle(collect(1:C))[1:n]);
     toRetrieve = Array{Int64}(n,3);
     toBeLoaded = Array{AbstractString}(n,1);
-    deadlineRet = zeros(Float64,n,1);
     c = 0;
     i = 1;
     R = size(heightsInitial)[1];
@@ -303,7 +302,7 @@ function randomRetrievalFun(n,heightsInitial,IOPointsPosition)
             end
         end
     end
-    return (toRetrieve, toBeLoaded, deadlineRet);
+    return (toRetrieve, toBeLoaded);
 end
 
 ################################################################################
@@ -318,18 +317,15 @@ end
 ## or “start” points of moves wihtout a container
 ## (stackOf,heightOf,loadOf) are the three inputs for retrievals for the Integer Program
 ## contStackIOPoint[[r,s]] is the list of containers which are deliverable from s to r
-function initializeRetrievals(randomRetrieval, n, S, SB, heightsInitial, IOPoints, groupIOPoint, IOPointsPosition)
-    deadlineRet = [];
+function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, IOPointsPosition)
     if randomRetrieval || n == 0
-        (toRetrieve, toBeLoaded, deadlineRet) = randomRetrievalFun(n,heightsInitial,IOPointsPosition);
+        (toRetrieve, toBeLoaded) = randomRetrievalFun(n,heightsInitial,IOPointsPosition);
     else
         toRetrieveData = readcsv("retrievals.csv", header=false);
         toRetrieve = toRetrieveData[:,1:3];
         toRetrieve = Array{Int64}(toRetrieve);
         toBeLoaded = toRetrieveData[:,4];
         toBeLoaded = Array{AbstractString}(toBeLoaded);
-        deadline = toRetrieveData[:,5];
-        deadlineRet = Array{Float64}(deadline);
     end
     stackOf = Dict{Int64,Int64}();
     heightOf = Dict{Int64,Int64}();
@@ -391,7 +387,7 @@ function initializeRetrievals(randomRetrieval, n, S, SB, heightsInitial, IOPoint
         previousCont = m;
     end
 
-    return (T, SR, SO, SL, SY, stackOf, heightOf, loadOf, contStackIOPoint, contMinHeightStack, previousContToMove, toRetrieve, toBeLoaded, deadlineRet);
+    return (T, SR, SO, SL, SY, stackOf, heightOf, loadOf, contStackIOPoint, contMinHeightStack, previousContToMove, toRetrieve, toBeLoaded);
 end
 
 ################################################################################
@@ -408,7 +404,6 @@ end
 ## from IO-point s
 function initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint)
     toBeUnloaded = Array{AbstractString}(N-n,1);
-    deadlineSta = zeros(Float64,N-n,1);
     if randomStacking
         for m = 1:N-n
             if IOPointsPosition == "left-sided"
@@ -426,9 +421,7 @@ function initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint
             end
         end
     else
-        toStackData = readcsv("stackings.csv", header=false);
-        toBeUnloaded = toStackData[:,1];
-        deadlineSta = toStackData[:,2];
+        toBeUnloaded = readcsv("stackings.csv", header=false);
     end
     unloadFrom = Dict{Int64,Array{Int64}}();
     SU = Set{Int64}();
@@ -448,7 +441,7 @@ function initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint
             append!(contStackableIOPoint[r],m);
         end
     end
-    return (unloadFrom, SU, SX, contStackableIOPoint, toBeUnloaded, deadlineSta);
+    return (unloadFrom, SU, SX, contStackableIOPoint, toBeUnloaded);
 end
 
 ################################################################################
@@ -569,36 +562,11 @@ function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCo
 end
 
 ################################################################################
-############################# defineRandomDeadlines ############################
-################################################################################
-
-## This function creates random deadlines for each productive move
-function defineRandomDeadlines(deadlineRet, deadlineSta, randomRetrieval, randomStacking, N, n, T, costMove, costPreMove)
-    deadlines = zeros(Float64,N,1);
-    M = T*(maximum(values(costMove)) + maximum(values(costPreMove)));
-    if n > 0
-        if randomRetrieval
-            deadlines[1:n] = round(M.*rand(n)+M/T,0);
-        else
-            deadlines[1:n] = deadlineRet;
-        end
-    end
-    if N - n > 0
-        if randomStacking
-            deadlines[n+1:N] = round(M.*rand(N-n)+M/T,0);
-        else
-            deadlines[n+1:N] = deadlineSta;
-        end
-    end
-    return deadlines;
-end
-
-################################################################################
 ################################## printProblem ################################
 ################################################################################
 
 ## This function prints the problem inputs
-function printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial,deadlines)
+function printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial)
 
     println("-------------------------------");
     println("MAIN VALUES");
@@ -611,15 +579,15 @@ function printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloa
     println("Number of actions : ", N);
     println("Number of retrievals : ", n);
     if n > 0
-        println("\tRow\tStack\tTier\tLoadOn\tDeadline");
+        println("\tRow\tStack\tTier\tLoadOn",);
         for m=1:n
-            println("Cont_",m,"\t",toRetrieve[m,1],"\t",toRetrieve[m,2],"\t",toRetrieve[m,3],"\t",toBeLoaded[m],"\t",deadlines[m]);
+            println("Cont_",m,"\t",toRetrieve[m,1],"\t",toRetrieve[m,2],"\t",toRetrieve[m,3],"\t",toBeLoaded[m]);
         end
     end
     if N - n > 0
-        println("\tUnload\tDeadline");
+        println("\tUnloadFrom",);
         for m=n+1:N
-            println("Cont_",m,"\t",toBeUnloaded[m-n],"\t",deadlines[m]);
+            println("Cont_",m,"\t"toBeUnloaded[m-n]);
         end
     end
     println("-------------------------------");

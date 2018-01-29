@@ -85,6 +85,15 @@ function BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeU
     end
 
     for m = 1:T
+        if (m <= n || m >= N+1) && previousContToMove[m] != 0
+            for t = 2:T
+                # Relation between variables x and w for retrievals
+                @constraint(IPModel, sum(w[previousContToMove[m],s,t-1] for s in moveFrom[previousContToMove[m]]) - sum(w[m,s,t] for s in moveFrom[m]) == 0);
+            end
+        end
+    end
+
+    for m = n+1:N
         if previousContToMove[m] != 0
             for t = 1:T
                 # Relation between variables x and w for retrievals

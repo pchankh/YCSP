@@ -1,4 +1,4 @@
-function subProblem(WtoBeCut, H, artificialHeights, moveFrom, IOPoints, SR, SB, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove, costMove, costPreMove, costToGo, alpha, printSolver, limitOfTime)
+function subProblem(Wgiven, H, artificialHeights, moveFrom, IOPoints, SR, SB, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove, costMove, costPreMove, costToGo, alpha, printSolver, limitOfTime)
 
     LP = Model(solver = GurobiSolver(OutputFlag = printSolver, TimeLimit = limitOfTime));
 
@@ -21,9 +21,9 @@ function subProblem(WtoBeCut, H, artificialHeights, moveFrom, IOPoints, SR, SB, 
     ################# Relation between variables x and w ################
     #####################################################################
 
-    @constraint(LP, constW_1[m = 1:T,s in moveFrom[m],t = 1:T], sum(x[s,r,t] for r in posteriorContStacks[[m,s]]) >= WtoBeCut[m,s,t]);
+    @constraint(LP, constW_1[m = 1:T,s in moveFrom[m],t = 1:T], sum(x[s,r,t] for r in posteriorContStacks[[m,s]]) >= Wgiven[[m,s,t]]);
 
-    @constraint(LP, constW_2[s in SR,t = 1:T-1], sum(x[r,s,t] for r in anteriorStacks[s]) <= sum(WtoBeCut[contMinHeightStack[s],s,u] for u = 1:t-1));
+    @constraint(LP, constW_2[s in SR,t = 1:T], sum(x[r,s,t] for r in anteriorStacks[s]) <= sum(Wgiven[[contMinHeightStack[s],s,u]] for u = 1:t-1));
 
     #####################################################################
     ##################### Conditions on crane moves #####################
@@ -69,14 +69,39 @@ function subProblem(WtoBeCut, H, artificialHeights, moveFrom, IOPoints, SR, SB, 
         @constraint(LP, sum(finalh[s,h] for h = 0:H) == 1);
     end
 
-    println("Finding new cut ....");
     tic();
     status = solve(LP);
     # println("Solved !");
     timeToSolve = toc();
 
+    P1 = getdual(constW_1);
+    P2 = getdual(constW_2);
+    P = Dict{Array{Int64},Float64}();
+    for m = 1:T
+        for s in moveFrom[m]
+            for t = 1:T
+                if P1[m,s,t] != 0
+                    P[[m,s,t]] = P1[m,s,t];
+                end
+            end
+        end
+    end
+    for s in SR
+        for t = 1:T
+            if P2[s,t] != 0
+                for u = 1:t-1
+                    if [contMinHeightStack[s],s,u] in keys(P)
+                        P[[contMinHeightStack[s],s,u]] = P[[contMinHeightStack[s],s,u]] - P2[s,t];
+                    else
+                        P[[contMinHeightStack[s],s,u]] = - P2[s,t];
+                    end
+                end
+            end
+        end
+    end
+
     Obj = getobjectivevalue(LP);
 
-    return (Z,P,Obj)
+    return (Obj,P)
 
 end
