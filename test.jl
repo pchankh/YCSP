@@ -20,22 +20,73 @@ end
 println(count, " should be ", T);
 
 count = 0;
-for m = 1:N
+for m =1:T
     for t = 1:T
-        if W[m,t] > 0.0000000001
-            println(m, " , ",t);
-            println(W[m,t]);
+        if W[m,t] > 0.9
+            println(W[m,t])
+            println(WLP[m,t])
+            println(P[m,t])
+            println("--------")
+        end
+    end
+end
+
+for m = 1:T
+    count = 0;
+    for t = 1:T
+        if WLP[m,t] > 0.0000000001
+            # println(m, " , ",t);
+            # println(WLP[m,t]);
+            count = count + 1
+        end
+    end
+    # println(m," : ", count);
+    countB = 0;
+    for t = 1:T
+        if WLP[m,t] > 2/count
+            # println(m, " , ",t);
+            # println(WLP[m,t]);
+            countB = countB + 1
+        end
+    end
+    println(m," : ", countB);
+end
+
+
+count = 0;
+for s in SB
+    for h = 0:H
+        if finalHeights[s,h] > 0.0000000001
+            println(s, " , ",h);
+            println(finalHeights[s,h]);
             count = count + 1
         end
     end
 end
-println(count, " should be ", N);
+println(count, " should be ", R*S);
 
-for h = 0:H
-    for t = 1:T
-        if newHeights[32,h,t] != 0
-            println(t, " and ", h);
-            println(newHeights[32,h,t]);
+Wgiven = zeros(Int64,T,T);
+t = 0;
+remainToStack = N - n;
+for m = 1:n
+    if sum(Wgiven[m,:]) == 0
+        blockingCont = [m];
+        while previousContToMove[blockingCont[length(blockingCont)]] != 0
+            append!(blockingCont,previousContToMove[blockingCont[length(blockingCont)]]);
+        end
+        for c = length(blockingCont):-1:1
+            t = t + 1;
+            Wgiven[blockingCont[c],t] = 1;
+        end
+        if remainToStack > 0
+            t = t + 1;
+            Wgiven[N - remainToStack + 1,t] = 1;
+            remainToStack = remainToStack - 1;
         end
     end
+end
+while remainToStack > 03
+    t = t + 1;
+    Wgiven[N - remainToStack + 1,t] = 1;
+    remainToStack = remainToStack - 1;
 end

@@ -318,7 +318,7 @@ end
 ## (stackOf,heightOf,loadOf) are the three inputs for retrievals for the Integer Program
 ## contStackIOPoint[[r,s]] is the list of containers which are deliverable from s to r
 function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, IOPointsPosition)
-    if randomRetrieval
+    if randomRetrieval || n == 0
         (toRetrieve, toBeLoaded) = randomRetrievalFun(n,heightsInitial,IOPointsPosition);
     else
         toRetrieveData = readcsv("retrievals.csv", header=false);
@@ -344,17 +344,50 @@ function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, 
     SO = setdiff(SB,SR);
     SY = union(SB,SL);
     contStackIOPoint = Dict{Array{Int64},Array{Int64}}();
+    contMinHeightStack = Dict{Int64,Int64}();
     for s in SR
+        contMinHeightStack[s] = 0;
         for r in IOPoints[s]
             contStackIOPoint[[s,r]] = [];
         end
     end
     for m = 1:n
+        if contMinHeightStack[stackOf[m]] == 0 || heightOf[contMinHeightStack[stackOf[m]]] > heightOf[m]
+            contMinHeightStack[stackOf[m]] = m;
+        end
         for r in loadOf[m]
             append!(contStackIOPoint[[stackOf[m],r]],m);
         end
     end
-    return (SR, SO, SL, SY, stackOf, heightOf, loadOf, contStackIOPoint, toRetrieve, toBeLoaded);
+    previousContToMove = Dict{Int64,Int64}();
+    T = N;
+    for s in SR
+        nextCont = contMinHeightStack[s];
+        for h = heightOf[contMinHeightStack[s]]+1:heightsInitial[realStack[s][1],realStack[s][2]]
+            toAssign = false;
+            for m = 1:n
+                if stackOf[m] == s && heightOf[m] == h
+                    previousContToMove[nextCont] = m;
+                    nextCont = m;
+                    toAssign = true;
+                end
+            end
+            if !(toAssign)
+                T = T + 1;
+                stackOf[T] = s;
+                previousContToMove[nextCont] = T;
+                nextCont = T;
+            end
+        end
+        previousContToMove[nextCont] = 0;
+    end
+    previousCont = 0;
+    for m = n+1:N
+        previousContToMove[m] = previousCont;
+        previousCont = m;
+    end
+
+    return (T, SR, SO, SL, SY, stackOf, heightOf, loadOf, contStackIOPoint, contMinHeightStack, previousContToMove, toRetrieve, toBeLoaded);
 end
 
 ################################################################################
@@ -452,26 +485,6 @@ function antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint)
 end
 
 ################################################################################
-################################## numberOfMoves ###############################
-################################################################################
-
-## This function computes T the total number of moves
-
-function numberOfMoves(n,N,SR,heightsInitial,realStack,stackOf)
-    T = N - n;
-    for s in SR
-        minHeight = heightsInitial[realStack[s][1],realStack[s][2]];
-        for m = 1:n
-            if stackOf[m] == s
-                minHeight = min(minHeight,heightOf[m]);
-            end
-        end
-        T += heightsInitial[realStack[s][1],realStack[s][2]] - minHeight + 1;
-    end
-    return T;
-end
-
-################################################################################
 ################################### defineCosts ################################
 ################################################################################
 
@@ -483,7 +496,7 @@ end
 ## costToGo: the multiplicative factor associated with the expected number of
 ## blocking containers
 ## alpha[h]: the expected number of blocking containers in a stack with h containers
-function defineCosts(T, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack)
+function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack)
     costMove = Dict{Array{Int64},Float64}();
     for s in SX
         for r in posteriorStacks[s]
@@ -497,14 +510,14 @@ function defineCosts(T, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCo
         end
     end
     # costToGo = 1/(R*S);
-    costToGo = sqrt(T)/(R*S);
+    costToGo = sqrt(N)/(R*S);
     # costToGo = sqrt(T/(R*S));
     # costToGo = T/sqrt(R*S);
     alpha = Array{Float64}(H,1);
     sumInv = 0;
     for h = 1:H
         sumInv += 1/h;
-        alpha[h] = h - sumInv;
+        alpha[h] = h + sumInv;
     end
     return (costMove, costPreMove, costToGo, alpha);
 end
@@ -613,7 +626,7 @@ end
 ################################## printResult ################################
 ################################################################################
 
-function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,newHeights,finalHeights,W)
+function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W)
 
     updatedHeights = zeros(Int64, length(SB),T+1);
     for s in SB

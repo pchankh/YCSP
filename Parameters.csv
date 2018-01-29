@@ -1,26 +1,26 @@
 --------------------- Problem Size ----------------------
 
-NumberOfRows						,29
+NumberOfRows						,3
 
-NumberOfStacks						,7
+NumberOfStacks						,1
 
 MaximumTiers						,4
 
-IOPointsPosition					,up-and-down
+IOPointsPosition					,left-sided
 
 --------------------- NumberOfActions --------------------
 
-NumberOfActions						,10
+NumberOfActions						,2
 
-NumberOfRetrievals					,4
+NumberOfRetrievals					,0
 
 ------------------------ Costs --------------------------
 
-TrolleyCost (X)						,0.1
+TrolleyCost (X)						,0
 
 WheelCost (Y)						,1
 
-HoistingCost (Z)					,2
+HoistingCost (Z)					,0
 
 ---------------------- Solver Inputs ---------------------
 
@@ -32,11 +32,10 @@ PrintSolver							,1
 
 --------------------- Random Inputs ---------------------
 
-InitialPositionOfCrane				,true
+InitialPositionOfCrane				,false
 
-InitialHeights						,true
+InitialHeights						,false
 
-RetrievalsAttributes				,true
+RetrievalsAttributes				,false
 
-StackingsAttributes					,true
-
+StackingsAttributes					,false
