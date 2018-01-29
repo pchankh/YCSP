@@ -19,8 +19,8 @@
 ## costLoadedDrive[[s,r]] is the cost of having a crane loaded drive from s to r
 ## beta[z] is the term define in the paper
 
-function readInstances(nameFolder,instance,X,Y,Z,fillRate,IOPointsPosition,vXEmpty,vXLoaded,vYEmpty,vYLoaded,vZEmpty,vZLoaded,timeHandling,gamma,N)
-    heightsInitial = readcsv(joinpath(nameFolder,string(instance,"_Block.csv")));
+function readInstances(nameFolder,instanceNumber,X,Y,Z,fillRate,IOPointsPosition,vXEmpty,vXLoaded,vYEmpty,vYLoaded,vZEmpty,vZLoaded,timeHandling,gamma,N,nPeriods)
+    heightsInitial = readcsv(joinpath(nameFolder,string(instanceNumber,"_Block.csv")));
     C = sum(heightsInitial);
     positionCont = Dict{Int64,Array{Int64}}();
     blockID = Dict{Array{Int64},Int64}();
@@ -138,7 +138,7 @@ function readInstances(nameFolder,instance,X,Y,Z,fillRate,IOPointsPosition,vXEmp
     for z = 0:Z
         beta[z] = gamma * alpha[z] - z*(z+1)/vZ;
     end
-    scenarioMatrix = readcsv(joinpath(nameFolder,string(instance,"_Requests.csv")));
+    scenarioMatrix = readcsv(joinpath(nameFolder,string(instanceNumber,"_Requests.csv")));
     scenario = Dict{Int64,Array{Any,2}}();
     for p = 1:nPeriods
         scenario[p] = scenarioMatrix[(p-1)*N+1:p*N,:];

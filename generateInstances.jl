@@ -12,7 +12,7 @@ Y = 30;
 Z = 4;
 fillRate = 0.67;
 IOPointsPosition = "Asian-right";
-nRequests = 1000;
+nRequests = 1500;
 gap = X*Y;
 
 
@@ -60,7 +60,7 @@ for instance = 1:nInstances
     end
     ind = Int64(C);
     for r = 1:nRequests
-        if (C == 0) || (C < X*Y*Z - (Z-1) && rand() < 1/2)
+        if (C <= X*Y) || (C < X*Y*Z - Y*(Z-1) && rand() < 1/2)
             scenarioMatrix[r,1] = "storage";
             ind = ind + 1;
             arrivalReq[ind] = r;

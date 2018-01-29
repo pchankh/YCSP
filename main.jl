@@ -72,7 +72,7 @@ for method in methodsList
     if !ispath(outputFolder)
         mkpath(outputFolder);
     end
-    (heightsBlock,positionCont,blockID,SB,SI,realStack,nameIOPoint,groupIOPoint,posCraneInitial,costEmptyDrive,costLoadedDrive,vZ,costVerticalDrive,beta,scenario) = readInstances(nameFolder,instanceNumber,X,Y,Z,fillRate,IOPointsPosition,vXEmpty,vXLoaded,vYEmpty,vYLoaded,vZEmpty,vZLoaded,timeHandling,gamma,N);
+    (heightsBlock,positionCont,blockID,SB,SI,realStack,nameIOPoint,groupIOPoint,posCraneInitial,costEmptyDrive,costLoadedDrive,vZ,costVerticalDrive,beta,scenario) = readInstances(nameFolder,instanceNumber,X,Y,Z,fillRate,IOPointsPosition,vXEmpty,vXLoaded,vYEmpty,vYLoaded,vZEmpty,vZLoaded,timeHandling,gamma,N,nPeriods);
     performanceMetrics = DataFrame(Total_Cost = Array{Float64}(nPeriods+1), Ratio_Reloc_Prod = Array{Float64}(nPeriods+1), Horiz_Cost = Array{Float64}(nPeriods+1),Vert_Cost = Array{Float64}(nPeriods+1),nReloc = Array{Int64}(nPeriods+1), non_Optimal = Array{Int64}(nPeriods+1));
     for period = 1:nPeriods
         println(period,"/",nPeriods);
