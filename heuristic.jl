@@ -6,7 +6,7 @@ function lowerBound(order,NBar,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCrane
         reverseOrder[order[k]] = k;
     end
     validCycles = Dict{Int64,Array{Int64}}();
-    for r in intersect(SE,SB)
+    for r in union(intersect(SE,SB),SR)
         validCycles[r] = [];
         for k = 1:NBar
             if r in E[order[k]]
@@ -14,7 +14,7 @@ function lowerBound(order,NBar,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCrane
             end
         end
     end
-    LBModel = Model(solver = GurobiSolver());
+    LBModel = Model(solver = GurobiSolver(OutputFlag=0));
     @variable(LBModel, 0 <= w[k = 1:NBar,s in L[order[k]]] <= 1);
     @variable(LBModel, 0 <= dInit[L[order[1]]] <= 1);
     @variable(LBModel, 0 <= dEmpty[k = 2:NBar,r in E[order[k-1]],s in L[order[k]]] <= 1);
@@ -32,10 +32,10 @@ function lowerBound(order,NBar,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCrane
     @constraint(LBModel, finalHeightConst[r in intersect(SE,SB)], sum(z * finalZ[r,z] for z = heightsTilde[r]:Z) - sum(dLoaded[k,s,r] for k in validCycles[r] for s in L[order[k]]) == heightsTilde[r]);
     @constraint(LBModel, constW_1[k = 1:NBar, s in L[order[k]]], sum(dLoaded[k,s,r] for r in E[order[k]]) - w[k,s] >= 0);
     @constraint(LBModel, constW_2_changed[r in SR, k = intersect(validCycles[r],1:reverseOrder[minStack[r]]),s in L[order[k]]], dLoaded[k,s,r] == 0);
-    TT = STDOUT;
-    redirect_stdout();
+    # TT = STDOUT;
+    # redirect_stdout();
     status = solve(LBModel);
-    redirect_stdout(TT);
+    # redirect_stdout(TT);
     ObjLB = getobjectivevalue(LBModel);
     WL = getvalue(w);
     SLB = Dict{Int64,Array{Int64}}();
@@ -97,17 +97,17 @@ function upperBound(order,sigma,NBar,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,po
             end
         end
     end
-    UBModel = Model(solver = GurobiSolver());
+    UBModel = Model(solver = GurobiSolver(OutputFlag=0));
     @variable(UBModel, 0 <= dBar[k = 1:NBar, r in EBar[order[k]]] <= 1);
     @variable(UBModel, 0 <= finalZBar[r in SBBar,z = heightsTilde[r]:Z] <= 1);
     @objective(UBModel, Min, sum(costBar[[k,r]]*dBar[k,r] for k = 1:NBar for r in EBar[order[k]]) + sum(beta[z]*finalZBar[r,z] for r in SBBar for z = heightsTilde[r]+1:Z));
     @constraint(UBModel, constDUniqBar[k = 1:NBar], sum(dBar[k,r] for r in EBar[order[k]]) == 1);
     @constraint(UBModel, finalZUniqBar[r in SBBar], sum(finalZBar[r,z] for z = heightsTilde[r]:Z) == 1);
     @constraint(UBModel, finalZConstBar[r in SBBar], sum(z * finalZBar[r,z] for z = heightsTilde[r]:Z) - sum(dBar[k,r] for k in KBar[r]) == heightsTilde[r]);
-    TT = STDOUT;
-    redirect_stdout();
+    # TT = STDOUT;
+    # redirect_stdout();
     status = solve(UBModel);
-    redirect_stdout(TT);
+    # redirect_stdout(TT);
     ObjUB = costEmptyDrive[[posCraneInitial,sigma[1]]] + getobjectivevalue(UBModel);
     D = getvalue(dBar);
     emptyStack = Array{Int64,1}(NBar);
@@ -179,7 +179,7 @@ function feasibleOrder(N,orderReq,UnSwapReq,delta)
         isFeasible = (isFeasible & (n - k <= delta[n,1] && k - n <= delta[n,2]));
         for l = k+1:N
             m = orderReq[l];
-            if m > n && [n,m] in UnSwapReq
+            if m < n && [m,n] in UnSwapReq
                 isFeasible = false;
             end
         end
@@ -244,7 +244,8 @@ function sampleOrder(N,delta,UnSwapReq)
 end
 
 function heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime,delta,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack,cstVerticalCost,vZ,printSolutions,outputFolder,realStack,requestsID,nameIOPoint,IOPointsPosition,X,Y,heightsBlock,positionCont,blockID,period)
-
+    TT = STDOUT;
+    redirect_stdout();
     startTime = time();
     forcedReloc = Dict{Int64,Array{Int64,1}}();
     for n = 1:N
@@ -290,6 +291,7 @@ function heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime
         end
         nLocal = nLocal + 1;
     end
+    redirect_stdout(TT);
     if printSolutions
         outputFile = joinpath(outputFolder,string(period,"_Period"));
         f = open(outputFile,"a");

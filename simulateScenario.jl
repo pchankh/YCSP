@@ -61,19 +61,24 @@ function simulateScenario(period,scenario,N,SB,heightsBlock,realStack,groupIOPoi
                     end
                     if minCont < contInStack[s][i]
                         for k = contInStack[s][i]:-1:minCont+1
-                            if k-1 in NR
+                            if k-1 in NS
+                                delete!(NS,k-1);
+                                push!(NS,k);
+                                delete!(NR,k);
+                                push!(NR,k-1);
+                            else
                                 s = L[k-1][1];
                                 ind = findfirst(contInStack[s], k-1);
                                 contInStack[s][ind] = contInStack[s][ind] + 1;
+                                if k-1 == minStack[s]
+                                    minStack[s] = k;
+                                end
                             end
                             dataPeriod[k-1,:], dataPeriod[k,:] = dataPeriod[k,:], dataPeriod[k-1,:];
                             requestsID[k-1], requestsID[k] = requestsID[k], requestsID[k-1];
                             delta[k-1,:], delta[k,:] = delta[k,:], delta[k-1,:];
                             L[k-1], L[k] = L[k], L[k-1];
                             E[k-1], E[k] = E[k], E[k-1];
-                        end
-                        if minCont == minStack[s]
-                            minStack[s] = contInStack[s][i];
                         end
                         contInStack[s][i] = minCont;
                     end

@@ -113,7 +113,7 @@ function readInstances(nameFolder,instance,X,Y,Z,fillRate,IOPointsPosition,vXEmp
         groupIOPoint["lanside"] = SI[1:X];
         groupIOPoint["seaside"] = SI[X+1:2*X];
     end
-    posCraneInitial = Int64(ceil(X*Y/2));
+    posCraneInitial = Int64(floor(Y/2)*X+floor(X/2));
     costEmptyDrive = Dict{Array{Int64},Float64}();
     costLoadedDrive = Dict{Array{Int64},Float64}();
     costVerticalDrive = Dict{Int64,Float64}();
