@@ -60,21 +60,23 @@ for instance = 1:nInstances
     end
     ind = Int64(C);
     for r = 1:nRequests
-        if rand() < 1/2
+        if (C == 0) || (C < X*Y*Z - (Z-1) && rand() < 1/2)
             scenarioMatrix[r,1] = "storage";
             ind = ind + 1;
             arrivalReq[ind] = r;
             push!(containersInBlock,Int64(ind));
             scenarioMatrix[r,4] = Int64(ind);
+            C = C + 1;
         else
             scenarioMatrix[r,1] = "retrieval";
-            c = rand(1:length(containersInBlock));
+            c = rand(1:C);
             while r - arrivalReq[containersInBlock[c]] < gap
-                c = rand(1:length(containersInBlock));
+                c = rand(1:C);
             end
             delete!(arrivalReq,containersInBlock[c]);
             scenarioMatrix[r,4] = containersInBlock[c];
             deleteat!(containersInBlock,c);
+            C = C - 1;
         end
         if scenarioMatrix[r,1] == "storage"
             scenarioMatrix[r,2] = "internal";

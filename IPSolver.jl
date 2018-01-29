@@ -3,7 +3,7 @@
 ################################################################################
 ## This function solves the binary integer program
 
-function IPSolver(limitOfTime,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,heightsTilde,restricted,blockingCont,N,minStack,delta,SR,cstVerticalCost,vZ,NR,NS,NU,E,requestsID,heightsBlock,positionCont,blockID,realStack,nameIOPoint,printSolutions,outputFolder,period)
+function IPSolver(limitOfTime,NSamples,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,heightsTilde,restricted,blockingCont,N,minStack,delta,SR,cstVerticalCost,vZ,NR,NS,NU,E,requestsID,heightsBlock,positionCont,blockID,realStack,nameIOPoint,printSolutions,outputFolder,period)
 
     IPModel = Model(solver = GurobiSolver(TimeLimit = limitOfTime));
     @variable(IPModel, w[n = 1:NBar, s in L[n],1:NBar], Bin);
@@ -41,126 +41,239 @@ function IPSolver(limitOfTime,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,c
     status = solve(IPModel);
     redirect_stdout(TT);
     WSol = getvalue(w);
-    DSolInit = getvalue(dInit);
-    DSolEmpty = getvalue(dEmpty);
-    DSolLoaded = getvalue(dLoaded);
-    ZSolFinal = getvalue(finalZ);
-    horizontalCost = sum(costEmptyDrive[[posCraneInitial,s]]*DSolInit[s] for s in SL) + sum(costEmptyDrive[[r,s]]*DSolEmpty[r,s,k] for r in SE for s in SL for k = 2:NBar) + sum(costLoadedDrive[[s,r]]*DSolLoaded[s,r,k] for s in SL for r in SE for k = 1:NBar);
-    verticalCost = cstVerticalCost;
-    if length(intersect(SE,SB))>0
-        verticalCost = verticalCost - 1/vZ*sum(z*(z+1)*ZSolFinal[r,z] for r in intersect(SE,SB) for z = heightsTilde[r]:Z);
-    end
-    if printSolutions
-        outputFile = joinpath(outputFolder,string(period,"_Period"));
-        f = open(outputFile,"a");
-        posCrane = posCraneInitial;
+    if !isnan(sum(WSol))
+        DSolInit = getvalue(dInit);
+        DSolEmpty = getvalue(dEmpty);
+        DSolLoaded = getvalue(dLoaded);
+        ZSolFinal = getvalue(finalZ);
+        horizontalCost = sum(costEmptyDrive[[posCraneInitial,s]]*DSolInit[s] for s in SL) + sum(costEmptyDrive[[r,s]]*DSolEmpty[r,s,k] for r in SE for s in SL for k = 2:NBar) + sum(costLoadedDrive[[s,r]]*DSolLoaded[s,r,k] for s in SL for r in SE for k = 1:NBar);
+        verticalCost = cstVerticalCost;
+        if length(intersect(SE,SB))>0
+            verticalCost = verticalCost - 1/vZ*sum(z*(z+1)*ZSolFinal[r,z] for r in intersect(SE,SB) for z = heightsTilde[r]:Z);
+        end
+        if printSolutions
+            outputFile = joinpath(outputFolder,string(period,"_Period"));
+            f = open(outputFile,"a");
+            posCrane = posCraneInitial;
+            for k = 1:NBar
+                for n = 1:NBar
+                    for s in L[n]
+                        if round(WSol[n,s,k]) == 1
+                            write(f,string("Stage  ", k,"\n"));
+                            if n in NR
+                                for r in E[n]
+                                    if round(DSolLoaded[s,r,k]) == 1
+                                        write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                                        write(f,string("Retrieve container ", requestsID[n], "(", n, ") from ", realStack[s], " to ", nameIOPoint[r],"\n"));
+                                        posCrane = r;
+                                    end
+                                end
+                            elseif n in NS
+                                for r in E[n]
+                                    if round(DSolLoaded[s,r,k]) == 1
+                                        write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                                        write(f,string("Store container ", requestsID[n], "(", n, ") from ", nameIOPoint[s], " in ", realStack[r],"\n"));
+                                        posCrane = r;
+                                    end
+                                end
+                            elseif n in NU
+                                for r in E[n]
+                                    if round(DSolLoaded[s,r,k]) == 1
+                                        write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                                        write(f,string("Relocate container ", requestsID[n], " from ", realStack[s], " in ", realStack[r],"\n"));
+                                        posCrane = r;
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                write(f,string("-----------------------------\n"));
+            end
+            write(f,string("Initial State of Block\n"));
+            str = "";
+            if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
+                str = string(str,"\tLeft");
+            end
+            for s = 1:X
+                str = string(str,"\tStack_",s);
+            end
+            if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
+                str = string(str,"\tRight");
+            end
+            write(f,string(str,"\n"));
+            if IOPointsPosition == "Euro"
+                write(f,string("Landside\n"));
+            end
+            sta = 0;
+            for r = 1:Y
+                str = string("Row_",r);
+                if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                for s = 1:X
+                    sta += 1;
+                    str = string(str,"\t",Int64(round(heightsBlock[sta])));
+                end
+                if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                write(f,string(str,"\n"));
+            end
+            if IOPointsPosition == "Euro"
+                write(f,string("Seaside\n"));
+            end
+            close(f);
+        end
         for k = 1:NBar
             for n = 1:NBar
                 for s in L[n]
                     if round(WSol[n,s,k]) == 1
-                        write(f,string("Stage  ", k,"\n"));
                         if n in NR
                             for r in E[n]
                                 if round(DSolLoaded[s,r,k]) == 1
-                                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
-                                    write(f,string("Retrieve container ", requestsID[n], "(", n, ") from ", realStack[s], " to ", nameIOPoint[r],"\n"));
-                                    posCrane = r;
+                                    delete!(blockID,[s,heightsBlock[s]]);
+                                    heightsBlock[s] = heightsBlock[s] - 1;
+                                    delete!(positionCont,requestsID[n]);
+                                    posCraneInitial = r;
                                 end
                             end
                         elseif n in NS
                             for r in E[n]
                                 if round(DSolLoaded[s,r,k]) == 1
-                                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
-                                    write(f,string("Store container ", requestsID[n], "(", n, ") from ", nameIOPoint[s], " in ", realStack[r],"\n"));
-                                    posCrane = r;
+                                    heightsBlock[r] = heightsBlock[r] + 1;
+                                    positionCont[requestsID[n]] = [r,heightsBlock[r]];
+                                    blockID[[r,heightsBlock[r]]] = requestsID[n];
+                                    posCraneInitial = r;
                                 end
                             end
                         elseif n in NU
                             for r in E[n]
                                 if round(DSolLoaded[s,r,k]) == 1
-                                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
-                                    write(f,string("Relocate container ", requestsID[n], " from ", realStack[s], " in ", realStack[r],"\n"));
-                                    posCrane = r;
+                                    delete!(blockID,[s,heightsBlock[s]]);
+                                    heightsBlock[s] = heightsBlock[s] - 1;
+                                    heightsBlock[r] = heightsBlock[r] + 1;
+                                    positionCont[requestsID[n]] = [r,heightsBlock[r]];
+                                    blockID[[r,heightsBlock[r]]] = requestsID[n];
+                                    posCraneInitial = r;
                                 end
                             end
                         end
                     end
                 end
             end
-            write(f,string("-----------------------------\n"));
         end
-        write(f,string("Initial State of Block\n"));
-        str = "";
-        if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
-            str = string(str,"\tLeft");
-        end
-        for s = 1:X
-            str = string(str,"\tStack_",s);
-        end
-        if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
-            str = string(str,"\tRight");
-        end
-        write(f,string(str,"\n"));
-        if IOPointsPosition == "Euro"
-            write(f,string("Landside\n"));
-        end
-        sta = 0;
-        for r = 1:Y
-            str = string("Row_",r);
-            if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
-                str = string(str,"\t");
-            end
-            for s = 1:X
-                sta += 1;
-                str = string(str,"\t",Int64(round(heightsBlock[sta])));
-            end
-            if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
-                str = string(str,"\t");
-            end
-            write(f,string(str,"\n"));
-        end
-        if IOPointsPosition == "Euro"
-            write(f,string("Seaside\n"));
-        end
-        close(f);
-    end
-    for k = 1:NBar
-        for n = 1:NBar
-            for s in L[n]
-                if round(WSol[n,s,k]) == 1
-                    if n in NR
-                        for r in E[n]
-                            if round(DSolLoaded[s,r,k]) == 1
-                                delete!(blockID,[s,heightsBlock[s]]);
-                                heightsBlock[s] = heightsBlock[s] - 1;
-                                delete!(positionCont,requestsID[n]);
-                                posCraneInitial = r;
-                            end
-                        end
-                    elseif n in NS
-                        for r in E[n]
-                            if round(DSolLoaded[s,r,k]) == 1
-                                heightsBlock[r] = heightsBlock[r] + 1;
-                                positionCont[requestsID[n]] = [r,heightsBlock[r]];
-                                blockID[[r,heightsBlock[r]]] = requestsID[n];
-                                posCraneInitial = r;
-                            end
-                        end
-                    elseif n in NU
-                        for r in E[n]
-                            if round(DSolLoaded[s,r,k]) == 1
-                                delete!(blockID,[s,heightsBlock[s]]);
-                                heightsBlock[s] = heightsBlock[s] - 1;
-                                heightsBlock[r] = heightsBlock[r] + 1;
-                                positionCont[requestsID[n]] = [r,heightsBlock[r]];
-                                blockID[[r,heightsBlock[r]]] = requestsID[n];
-                                posCraneInitial = r;
-                            end
-                        end
-                    end
+    else
+        forcedReloc = Dict{Int64,Array{Int64,1}}();
+        for n = 1:N
+            forcedReloc[n] = [];
+            if n in keys(blockingCont) && blockingCont[n] in NU
+                c = blockingCont[n];
+                unshift!(forcedReloc[n],c);
+                while c in keys(blockingCont) && blockingCont[c] in NU
+                    c = blockingCont[c];
+                    unshift!(forcedReloc[n],c);
                 end
             end
         end
+        bestOrder = fullOrder(NBar, N, collect(1:N), forcedReloc);
+        TT = STDOUT; # save original STDOUT stream
+        redirect_stdout();
+        (LB,UB,bestSigma,bestEmptyStack) = orderEval(bestOrder,NSamples,Inf,NBar,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack);
+        redirect_stdout(TT);
+        if printSolutions
+            outputFile = joinpath(outputFolder,string(period,"_Period"));
+            f = open(outputFile,"a");
+            posCrane = posCraneInitial;
+            for k = 1:NBar
+                n = bestOrder[k];
+                s = bestSigma[k];
+                r = bestEmptyStack[k];
+                write(f,string("Stage  ", k,"\n"));
+                if n in NR
+                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                    write(f,string("Retrieve container ", requestsID[n], "(", n, ") from ", realStack[s], " to ", nameIOPoint[r],"\n"));
+                    posCrane = r;
+                elseif n in NS
+                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                    write(f,string("Store container ", requestsID[n], "(", n, ") from ", nameIOPoint[s], " in ", realStack[r],"\n"));
+                    posCrane = r;
+                elseif n in NU
+                    write(f,string("Empty Drive from ", realStack[posCrane], " to ", realStack[s],"\n"));
+                    write(f,string("Relocate container ", requestsID[n], " from ", realStack[s], " in ", realStack[r],"\n"));
+                    posCrane = r;
+                end
+                write(f,string("-----------------------------\n"));
+            end
+            write(f,string("Initial State of Block\n"));
+            str = "";
+            if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
+                str = string(str,"\tLeft");
+            end
+            for s = 1:X
+                str = string(str,"\tStack_",s);
+            end
+            if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
+                str = string(str,"\tRight");
+            end
+            write(f,string(str,"\n"));
+            if IOPointsPosition == "Euro"
+                write(f,string("Landside\n"));
+            end
+            sta = 0;
+            for r = 1:Y
+                str = string("Row_",r);
+                if IOPointsPosition == "Asian-left" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                for s = 1:X
+                    sta += 1;
+                    str = string(str,"\t",Int64(round(heightsBlock[sta])));
+                end
+                if IOPointsPosition == "Asian-right" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                write(f,string(str,"\n"));
+            end
+            if IOPointsPosition == "Euro"
+                write(f,string("Seaside\n"));
+            end
+            close(f);
+        end
+        horizontalCost = 0;
+        for k = 1:NBar
+            n = bestOrder[k];
+            s = bestSigma[k];
+            r = bestEmptyStack[k];
+            horizontalCost = horizontalCost + costEmptyDrive[[posCraneInitial,s]] + costLoadedDrive[[s,r]];
+            if n in NR
+                delete!(blockID,[s,heightsBlock[s]]);
+                heightsBlock[s] = heightsBlock[s] - 1;
+                delete!(positionCont,requestsID[n]);
+                posCraneInitial = r;
+            elseif n in NS
+                heightsBlock[r] = heightsBlock[r] + 1;
+                positionCont[requestsID[n]] = [r,heightsBlock[r]];
+                blockID[[r,heightsBlock[r]]] = requestsID[n];
+                posCraneInitial = r;
+            elseif n in NU
+                delete!(blockID,[s,heightsBlock[s]]);
+                heightsBlock[s] = heightsBlock[s] - 1;
+                heightsBlock[r] = heightsBlock[r] + 1;
+                positionCont[requestsID[n]] = [r,heightsBlock[r]];
+                blockID[[r,heightsBlock[r]]] = requestsID[n];
+                posCraneInitial = r;
+            end
+        end
+        verticalCost = cstVerticalCost;
+        for r in intersect(SE,SB)
+            verticalCost = verticalCost - 1/vZ*(heightsBlock[r])*(heightsBlock[r]+1);
+        end
+
     end
-    return (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial);
+    nonOptimal = 0;
+    if status == :UserLimit
+        nonOptimal = 1;
+    end
+    return (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial,nonOptimal);
 end

@@ -29,11 +29,10 @@ IOPointsPosition = "Asian-right";
 nRequests = 180;
 gap = X*Y;
 
-methodsList = ["Heuristic", "Flexible_Restricted", "Flexible"];
 ## Instance number you want to consider
 instanceNumber = 8;
 ## Gamma to consider
-gamma = Int64(0);
+gamma = 0;
 ## Solver time limit
 limitOfTime = 60;
 ## Set the simulation parameters
@@ -50,11 +49,11 @@ printSolutions = true;
 ## 4) Flexible (Set restricted = false and choose gamma and flexibilityRequests)
 ## 5) Heuristic (Choose gamma and flexibilityRequests, NSamples and nTotalLocal)
 
+methodsList = ["FCFS_Myopic_Restricted", "FCFS_Myopic"];
 flexibilityRequests = Dict{AbstractString,Array{Int64}}();
-flexibilityRequests["internal"] = [0 2];
-flexibilityRequests["external"] = [2 0];
+flexibilityRequests["internal"] = [0 0];
+flexibilityRequests["external"] = [0 0];
 NSamples = 40;
-nTotalLocal = 40;
 
 ################################################################################
 ############################ SETTING UP SIMULATION #############################
@@ -63,9 +62,9 @@ subFolder = string(X,"X_",Y,"Y_",Z,"Z_",fillRate,"fill_",IOPointsPosition,"_",nR
 nameFolder = joinpath("Inputs",subFolder);
 for method in methodsList
     println(method);
-    if method == "Flexible"
+    if method == "FCFS_Myopic"
         restricted = false;
-    else
+    elseif method == "FCFS_Myopic_Restricted"
         restricted = true;
     end
     outputFolder = joinpath("Outputs",subFolder,string(instanceNumber),string(N),method,string(gamma));
@@ -77,12 +76,7 @@ for method in methodsList
     for period = 1:nPeriods
         println(period,"/",nPeriods);
         (NS,NR,delta,L,E,SR,minStack,heightsTilde,NBar,NU,blockingCont,requestsID,SL,SE,cstVerticalCost) = simulateScenario(period,scenario,N,SB,heightsBlock,realStack,groupIOPoint,positionCont,Z,flexibilityRequests,blockID,costVerticalDrive,vZ,printSolutions,outputFolder);
-        if method == "Heuristic"
-            (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial) = heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime,delta,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack,cstVerticalCost,vZ,printSolutions,outputFolder,realStack,requestsID,nameIOPoint,IOPointsPosition,X,Y,heightsBlock,positionCont,blockID,period);
-            nonOptimal = 1;
-        else
-            (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial,nonOptimal) = IPSolver(limitOfTime,NSamples,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,heightsTilde,restricted,blockingCont,N,minStack,delta,SR,cstVerticalCost,vZ,NR,NS,NU,E,requestsID,heightsBlock,positionCont,blockID,realStack,nameIOPoint,printSolutions,outputFolder,period);
-        end
+        (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial,nonOptimal) = IPSolver(limitOfTime,NSamples,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,heightsTilde,restricted,blockingCont,N,minStack,delta,SR,cstVerticalCost,vZ,NR,NS,NU,E,requestsID,heightsBlock,positionCont,blockID,realStack,nameIOPoint,printSolutions,outputFolder,period);
         performanceMetrics[:Total_Cost][period+1] = round(horizontalCost + verticalCost,2);
         performanceMetrics[:Ratio_Reloc_Prod][period+1] = round((NBar-N)/N,4);
         performanceMetrics[:Horiz_Cost][period+1] = round(horizontalCost,2);

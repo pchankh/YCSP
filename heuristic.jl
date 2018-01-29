@@ -244,8 +244,6 @@ function sampleOrder(N,delta,UnSwapReq)
 end
 
 function heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime,delta,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack,cstVerticalCost,vZ,printSolutions,outputFolder,realStack,requestsID,nameIOPoint,IOPointsPosition,X,Y,heightsBlock,positionCont,blockID,period)
-    TT = STDOUT;
-    redirect_stdout();
     startTime = time();
     forcedReloc = Dict{Int64,Array{Int64,1}}();
     for n = 1:N
@@ -282,7 +280,10 @@ function heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime
         else
             currentOrderReq = sampleOrder(N,delta,UnSwapReq);
         end
+        TT = STDOUT;
+        redirect_stdout();
         (currentUB,currentOrder,currentSigma,currentEmptyStack) = localSearch(currentOrderReq,startTime,limitOfTime,N,PairsSwap,UnSwapReq,delta,NBar,forcedReloc,NSamples,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack);
+        redirect_stdout(TT);
         if currentUB < bestUB
             bestUB = currentUB;
             bestOrder = currentOrder;
@@ -291,7 +292,6 @@ function heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime
         end
         nLocal = nLocal + 1;
     end
-    redirect_stdout(TT);
     if printSolutions
         outputFile = joinpath(outputFolder,string(period,"_Period"));
         f = open(outputFile,"a");
