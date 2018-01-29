@@ -1,9 +1,9 @@
 ------------------------ Testing ------------------------
 
-NumberOfStacks (X)					,7
+NumberOfStacks (X)					,10
 
-NumberOfRows (Y)					,20
+NumberOfRows (Y)					,25
 
-NumberOfActions						,8
+NumberOfActions						,10
 
-NumberOfRetrievals					,4
+NumberOfRetrievals					,5

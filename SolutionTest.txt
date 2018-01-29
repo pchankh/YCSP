@@ -1,0 +1,112 @@
+-------------------------------
+BLOCK STATE AT THE BEGINNING
+	Stack_1	Stack_2	Right
+Row_1	3	3	
+Row_2	2	4	
+Row_3	1	1	
+Row_4	1	4	
+Row_5	3	3	
+Row_6	4	2	
+Row_7	3	2	
+Row_8	4	3	
+Row_9	1	2	
+Row_10	4	5	
+Row_11	4	5	
+Row_12	5	3	
+Row_13	3	3	
+Row_14	4	0	
+Row_15	5	3	
+-----------------------------
+Time 1
+Crane moves from [8 1] to [4 1]
+Retrieve container 1 from [4 1] to 4 right
+-----------------------------
+Time 2
+Crane moves from 4 right to [6 1]
+Relocate container from [6 1] to [7 1]
+-----------------------------
+Time 3
+Crane moves from [7 1] to [6 1]
+Retrieve container 2 from [6 1] to 6 right
+-----------------------------
+Time 4
+Crane moves from 6 right to [12 1]
+Relocate container from [12 1] to [13 1]
+-----------------------------
+Time 5
+Crane moves from [13 1] to [12 1]
+Relocate container from [12 1] to [13 2]
+-----------------------------
+Time 6
+Crane moves from [13 2] to [12 1]
+Relocate container from [12 1] to [13 1]
+-----------------------------
+Time 7
+Crane moves from [13 1] to [12 1]
+Retrieve container 4 from [12 1] to 12 right
+-----------------------------
+Time 8
+Crane moves from 12 right to [10 2]
+Relocate container from [10 2] to [10 1]
+-----------------------------
+Time 9
+Crane moves from [10 1] to [10 2]
+Relocate container from [10 2] to [9 1]
+-----------------------------
+Time 10
+Crane moves from [9 1] to [10 2]
+Relocate container from [10 2] to [9 2]
+-----------------------------
+Time 11
+Crane moves from [9 2] to [10 2]
+Relocate container from [10 2] to [9 2]
+-----------------------------
+Time 12
+Crane moves from [9 2] to [10 2]
+Retrieve container 3 from [10 2] to 10 right
+-----------------------------
+Time 13
+Crane moves from 10 right to [7 2]
+Retrieve container 5 from [7 2] to 7 right
+-----------------------------
+Time 14
+Crane moves from 7 right to [2 2]
+Relocate container from [2 2] to [2 1]
+-----------------------------
+Time 15
+Crane moves from [2 1] to [2 2]
+Retrieve container 6 from [2 2] to 2 right
+-----------------------------
+Time 16
+Crane moves from 2 right to [11 1]
+Retrieve container 7 from [11 1] to 11 right
+-----------------------------
+Time 17
+Crane moves from 11 right to [12 2]
+Retrieve container 10 from [12 2] to 12 right
+-----------------------------
+Time 18
+Crane moves from 12 right to 10 right
+Stack container 9 from 10 right on [10 2]
+-----------------------------
+Time 19
+Crane moves from [10 2] to [6 2]
+Retrieve container 8 from [6 2] to 6 right
+-----------------------------
+BLOCK STATE AT THE END
+	Stack_1	Stack_2	Right
+Row_1	3	3	
+Row_2	3	2	
+Row_3	1	1	
+Row_4	0	4	
+Row_5	3	3	
+Row_6	2	1	
+Row_7	4	1	
+Row_8	4	3	
+Row_9	2	4	
+Row_10	5	1	
+Row_11	3	5	
+Row_12	1	2	
+Row_13	5	4	
+Row_14	4	0	
+Row_15	5	3	

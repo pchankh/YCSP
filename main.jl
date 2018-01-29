@@ -55,7 +55,17 @@ printProblem(X,Y,Z,IOPointsPosition,N,n,clusterToRealOrder,realToClusterOrder,ty
 ################################################################################
 
 println("Progress : 0.00 % |                                                   |");
-permutationProductive = realToClusterOrder[1:N];
+changeOrderReal = zeros(Int64,N);
+for o = 1:N
+    changeOrderReal[o] = min(changeOfOrder[typeOfTruck[o]],N);
+end
+currentPermuOrder = collect(1:N);
+currentPermuOrder = checkFeasibilityFCFS(currentPermuOrder,N,realToClusterOrder,stackOf,heightOf,changeOrderReal);
+IdCurrentPermuOrder = collect(1:N);
+for m = 1:N
+    IdCurrentPermuOrder[m] = currentPermuOrder[m]
+end
+permutationProductive = realToClusterOrder[currentPermuOrder];
 orderCont = fullOrderContainers(T, N, permutationProductive, blockingCont);
 (IdLBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights) = LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
 (IdUBObj,StackCont,moveWithContBest,moveInitBest,moveWithoutContBest,finalHeightsBest) = UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityStack,posCraneInitial,costPreMove,anteriorStacks,moveFrom,costMove,SX,posteriorStacks,SY,Z,costToGo,alpha,SR,contMinHeightStack,SB,artificialHeights,moveWithCont,moveInit,moveWithoutCont,finalHeights,IdLBObj);
@@ -70,18 +80,17 @@ for g = 1:N-1
 end
 i = 1;
 nLocal = 0;
-currentPermuOrder = collect(1:N);
-changeOrderReal = zeros(Int64,N);
-for o = 1:N
-    changeOrderReal[o] = min(changeOfOrder[typeOfTruck[o]],N);
-end
 currentUBObj = IdUBObj;
 bestOrder = collect(1:N);
 bestOrderCont = orderCont;
 bestStackCont = StackCont;
 nTotalLocal = T;
 alreadyVisited = Dict{Array{Int64},Array{Int64}}();
-alreadyVisited[collect(1:N)] = [];
+currentPermuOrderLoc = zeros(N);
+for ic = 1:N
+    currentPermuOrderLoc[ic] = currentPermuOrder[ic];
+end
+alreadyVisited[currentPermuOrderLoc] = [];
 while nLocal <= nTotalLocal && time() - startTime <= limitOfTime
     k_1 = round(max(nLocal/nTotalLocal,(time() - startTime)/limitOfTime)*100,2);
     if k_1 <= 99.99 && k_1 >= 10.00
@@ -96,10 +105,10 @@ while nLocal <= nTotalLocal && time() - startTime <= limitOfTime
     visitExchange = randperm(Int64(N*(N-1)/2));
     foundImprovedNeighbor = false;
     j = 1;
-    while j <= N*(N-1)/2 && !foundImprovedNeighbor
+    while j <= N*(N-1)/2 && !foundImprovedNeighbor && time() - startTime <= limitOfTime
         k = PairsSwap[visitExchange[j]][1];
         l = PairsSwap[visitExchange[j]][2];
-        if !foundImprovedNeighbor && feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,clusterToRealOrder) && !(visitExchange[j] in alreadyVisited[currentPermuOrder])
+        if !foundImprovedNeighbor && feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,realToClusterOrder,stackOf,heightOf) && !(visitExchange[j] in alreadyVisited[currentPermuOrder])
             i = i + 1;
             currentPermuOrder[k], currentPermuOrder[l] = currentPermuOrder[l], currentPermuOrder[k];
             permutationProductive = realToClusterOrder[currentPermuOrder];
@@ -119,7 +128,6 @@ while nLocal <= nTotalLocal && time() - startTime <= limitOfTime
                         moveInitBest = moveInit;
                         moveWithoutContBest = moveWithoutCont;
                         finalHeightsBest = finalHeights;
-                        println("Best Solution ", bestUBObj);
                     end
                     if !(currentPermuOrder in keys(alreadyVisited))
                         currentPermuOrderLoc = zeros(N);
@@ -149,7 +157,9 @@ while nLocal <= nTotalLocal && time() - startTime <= limitOfTime
     end
     if !foundImprovedNeighbor
         nLocal = nLocal + 1;
-        currentPermuOrder = collect(1:N);
+        for m = 1:N
+            currentPermuOrder[m] = IdCurrentPermuOrder[m];
+        end
         currentUBObj = IdUBObj;
     end
 end

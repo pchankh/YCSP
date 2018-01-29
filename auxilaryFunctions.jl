@@ -571,7 +571,8 @@ function defineCosts(n,X,Y,Z,SX,SY,posCraneInitial,posteriorStacks,rowCost,stack
             costPreMove[[s,r]] = rowCost * abs(realStack[s][1] - realStack[r][1]) + stackCost * abs(realStack[s][2] - realStack[r][2]);
         end
     end
-    costToGo = round((n+1)/(X*Y)*(2*(relocCost+min(rowCost,stackCost))),4);
+    costToGo = round((2*(relocCost+min(rowCost,stackCost))),4);
+    #costToGo = round((n+1)/(X*Y)*(2*(relocCost+max(rowCost,stackCost))),4);
     alpha = Array{Float64}(Z,1);
     sumInv = 0;
     for h = 1:Z
@@ -876,7 +877,7 @@ function costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,
     #####################################################################
     ############################# Objective #############################
     #####################################################################
-    @objective(LP, Min,sum(costMove[[s,r]]*x[s,r,t] for s in SX for r in posteriorStacks[s] for t = 1:T) + sum(costPreMove[[posCraneInitial,r]]*dInit[r] for r in SX) + sum(costPreMove[[s,r]]*d[s,r,t] for s in SY for r in SX for t = 2:T) + costToGo * sum(alpha[h]*finalh[s,h] for s in SB for h = 2:Z));
+    @objective(LP, Min,sum(costMove[[s,r]]*x[s,r,t] for s in SX for r in posteriorStacks[s] for t = 1:T) + sum(costPreMove[[posCraneInitial,r]]*dInit[r] for r in SX) + sum(costPreMove[[s,r]]*d[s,r,t] for s in SY for r in SX for t = 2:T) + costToGo * sum((alpha[h] - alpha[max(artificialHeights[s],1)])*finalh[s,h] for s in SB for h = 2:Z));
     #####################################################################
     ################# Relation between variables x and w ################
     #####################################################################
@@ -932,7 +933,7 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
     #####################################################################
     ############################# Objective #############################
     #####################################################################
-    @objective(LP, Min,sum(costMove[[s,r]]*x[s,r,t] for s in SX for r in posteriorStacks[s] for t = 1:T) + sum(costPreMove[[posCraneInitial,r]]*dInit[r] for r in SX) + sum(costPreMove[[s,r]]*d[s,r,t] for s in SY for r in SX for t = 2:T) + costToGo * sum(alpha[h]*finalh[s,h] for s in SB for h = 2:Z));
+    @objective(LP, Min,sum(costMove[[s,r]]*x[s,r,t] for s in SX for r in posteriorStacks[s] for t = 1:T) + sum(costPreMove[[posCraneInitial,r]]*dInit[r] for r in SX) + sum(costPreMove[[s,r]]*d[s,r,t] for s in SY for r in SX for t = 2:T) + costToGo * sum((alpha[h] - alpha[max(artificialHeights[s],1)])*finalh[s,h] for s in SB for h = 2:Z));
     #####################################################################
     ################# Relation between variables x and w ################
     #####################################################################
@@ -993,6 +994,12 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
                 for r in posteriorStacks[s]
                     if round(moveWithCont[s,r,orderCont[m]],6) > 1 - 0.000001
                         integralSolution[m] = r;
+                    elseif round(moveWithCont[s,r,orderCont[m]],6) > 0.000001
+                        if m in keys(nonIntegralSolution)
+                            append!(nonIntegralSolution[m],[r]);
+                        else
+                            nonIntegralSolution[m] = [r];
+                        end
                     end
                 end
             end
@@ -1000,7 +1007,7 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
     end
     capacityStack = Dict{Int64,Int64}();
     for r in keys(capacityStack_1)
-        capacityStack[r] = ceil(capacityStack_1[r]);
+        capacityStack[r] = ceil(round(capacityStack_1[r],Int64(min(0,6-ceil(T/10)))));
     end
     return (LBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights);
 end
@@ -1189,10 +1196,33 @@ function fullOrderContainers(T, N, permutationProductive, blockingCont)
     return orderCont;
 end
 
-function feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,clusterToRealOrder)
+function feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,realToClusterOrder,stackOf,heightOf)
     isSwapPossible = (abs(currentPermuOrder[k] - l) <= changeOrderReal[currentPermuOrder[k]] && abs(currentPermuOrder[l] - k) <= changeOrderReal[currentPermuOrder[l]]);
+    Cont1 = realToClusterOrder[currentPermuOrder[k]];
+    Cont2 = realToClusterOrder[currentPermuOrder[l]];
     if isSwapPossible
-        isSwapPossible = !(typeOfTruck[clusterToRealOrder[currentPermuOrder[k]]] == "internal" && typeOfTruck[clusterToRealOrder[currentPermuOrder[l]]] == "internal");
+        isSwapPossible = !(!(Cont1 in keys(stackOf)) && !(Cont2 in keys(stackOf)) && typeOfTruck[currentPermuOrder[k]] == "internal" && typeOfTruck[currentPermuOrder[l]] == "internal");
+    end
+    if isSwapPossible
+        if Cont1 in keys(stackOf) && Cont2 in keys(stackOf) && (k < l && stackOf[Cont1] == stackOf[Cont2] && heightOf[Cont1] > heightOf[Cont2])
+            isSwapPossible = false;
+        end
     end
     return isSwapPossible;
+end
+
+function checkFeasibilityFCFS(currentPermuOrder,N,realToClusterOrder,stackOf,heightOf,changeOrderReal)
+    for k = 1:N-1
+        for l = k+1:N
+            Cont1 = realToClusterOrder[k];
+            Cont2 = realToClusterOrder[l];
+            if Cont1 <= n && Cont2 <= n && stackOf[Cont1] == stackOf[Cont2] && heightOf[Cont1] <= heightOf[Cont2]
+                if changeOrderReal[k] < l-k || changeOrderReal[l] < l-k
+                    println(string("WARNING: we violate the flexibility policy by ", l-k-min(changeOrderReal[k],changeOrderReal[l])));
+                end
+                currentPermuOrder[k], currentPermuOrder[l] = currentPermuOrder[l], currentPermuOrder[k];
+            end
+        end
+    end
+    return currentPermuOrder;
 end

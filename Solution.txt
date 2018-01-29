@@ -1,0 +1,124 @@
+-------------------------------
+BLOCK STATE AT THE BEGINNING
+	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Stack_8	Stack_9	Stack_10	Right
+Row_1	3	5	4	5	5	4	3	5	5	4	
+Row_2	3	5	4	4	3	5	4	5	3	5	
+Row_3	3	3	4	4	5	4	5	5	5	3	
+Row_4	5	4	5	4	3	3	3	3	4	5	
+Row_5	4	3	3	4	4	3	3	3	4	3	
+Row_6	3	5	4	3	4	4	5	5	5	3	
+Row_7	4	5	3	3	4	4	3	4	3	4	
+Row_8	4	5	5	5	5	5	4	5	3	5	
+Row_9	4	4	3	4	5	5	4	5	4	5	
+Row_10	4	5	5	3	5	3	3	4	3	3	
+Row_11	5	3	5	3	5	5	3	3	5	3	
+Row_12	4	4	4	4	4	3	3	3	5	4	
+Row_13	4	3	4	3	4	4	3	4	4	5	
+Row_14	3	4	4	4	4	3	4	5	3	3	
+Row_15	3	5	4	3	4	3	4	5	3	5	
+Row_16	4	3	3	5	5	5	3	4	5	3	
+Row_17	3	5	4	4	5	5	4	4	4	5	
+Row_18	5	5	3	5	5	3	5	5	5	3	
+Row_19	5	5	4	5	3	4	5	3	5	5	
+Row_20	5	4	3	3	3	4	4	3	4	3	
+Row_21	5	4	3	5	5	3	5	3	5	4	
+Row_22	5	4	4	5	5	4	4	5	5	4	
+Row_23	4	3	3	3	4	5	4	4	4	5	
+Row_24	4	4	5	3	5	5	5	5	5	4	
+Row_25	4	3	3	5	3	3	5	4	4	3	
+-----------------------------
+Time 1
+Crane moves from [12 1] to [9 8]
+Relocate container from [9 8] to [9 9]
+-----------------------------
+Time 2
+Crane moves from [9 9] to [9 8]
+Relocate container from [9 8] to [9 7]
+-----------------------------
+Time 3
+Crane moves from [9 7] to [9 8]
+Relocate container from [9 8] to [9 4]
+-----------------------------
+Time 4
+Crane moves from [9 4] to [9 8]
+Retrieve container 4 from [9 8] to 9 right
+-----------------------------
+Time 5
+Crane moves from 9 right to [8 10]
+Retrieve container 2 from [8 10] to 8 right
+-----------------------------
+Time 6
+Crane moves from 8 right to [1 7]
+Relocate container from [1 7] to [1 10]
+-----------------------------
+Time 7
+Crane moves from [1 10] to [1 7]
+Relocate container from [1 7] to [1 6]
+-----------------------------
+Time 8
+Crane moves from [1 6] to [1 7]
+Retrieve container 1 from [1 7] to 1 right
+-----------------------------
+Time 9
+Crane stays at 1 right
+Stack container 3 from 1 right on [1 7]
+-----------------------------
+Time 10
+Crane moves from [1 7] to [1 2]
+Relocate container from [1 2] to [1 1]
+-----------------------------
+Time 11
+Crane moves from [1 1] to [1 2]
+Relocate container from [1 2] to [1 1]
+-----------------------------
+Time 12
+Crane moves from [1 1] to [1 2]
+Retrieve container 5 from [1 2] to 1 right
+-----------------------------
+Time 13
+Crane stays at 1 right
+Stack container 6 from 1 right on [1 7]
+-----------------------------
+Time 14
+Crane moves from [1 7] to 3 right
+Stack container 8 from 3 right on [3 10]
+-----------------------------
+Time 15
+Crane moves from [3 10] to [4 6]
+Retrieve container 7 from [4 6] to 4 right
+-----------------------------
+Time 16
+Crane stays at 4 right
+Stack container 9 from 4 right on [4 9]
+-----------------------------
+Time 17
+Crane moves from [4 9] to 4 right
+Stack container 10 from 4 right on [4 8]
+-----------------------------
+BLOCK STATE AT THE END
+	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Stack_8	Stack_9	Stack_10	Right
+Row_1	5	2	4	5	5	5	2	5	5	5	
+Row_2	3	5	4	4	3	5	4	5	3	5	
+Row_3	3	3	4	4	5	4	5	5	5	4	
+Row_4	5	4	5	4	3	2	3	4	5	5	
+Row_5	4	3	3	4	4	3	3	3	4	3	
+Row_6	3	5	4	3	4	4	5	5	5	3	
+Row_7	4	5	3	3	4	4	3	4	3	4	
+Row_8	4	5	5	5	5	5	4	5	3	4	
+Row_9	4	4	3	5	5	5	5	1	5	5	
+Row_10	4	5	5	3	5	3	3	4	3	3	
+Row_11	5	3	5	3	5	5	3	3	5	3	
+Row_12	4	4	4	4	4	3	3	3	5	4	
+Row_13	4	3	4	3	4	4	3	4	4	5	
+Row_14	3	4	4	4	4	3	4	5	3	3	
+Row_15	3	5	4	3	4	3	4	5	3	5	
+Row_16	4	3	3	5	5	5	3	4	5	3	
+Row_17	3	5	4	4	5	5	4	4	4	5	
+Row_18	5	5	3	5	5	3	5	5	5	3	
+Row_19	5	5	4	5	3	4	5	3	5	5	
+Row_20	5	4	3	3	3	4	4	3	4	3	
+Row_21	5	4	3	5	5	3	5	3	5	4	
+Row_22	5	4	4	5	5	4	4	5	5	4	
+Row_23	4	3	3	3	4	5	4	4	4	5	
+Row_24	4	4	5	3	5	5	5	5	5	4	
+Row_25	4	3	3	5	3	3	5	4	4	3	

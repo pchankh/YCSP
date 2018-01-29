@@ -6,7 +6,7 @@ LimitOfTime (in seconds)			,60
 
 External trucks                     ,0
 
-Internal trucks                     ,5
+Internal trucks                     ,3
 
 ------ Position of Truck Loading/Unloading points -------
 
@@ -14,7 +14,7 @@ IOPointsPosition					,right-sided
 
 ------------------- Crane Parameters --------------------
 
-MaximumTiers						,4
+MaximumTiers						,5
 
 TrolleyCost (X)						,0.1
 
