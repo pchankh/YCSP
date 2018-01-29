@@ -41,11 +41,7 @@ function costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,
     status = solve(LP);
     redirect_stdout(TT);
     Obj = getobjectivevalue(LP);
-    moveWithCont = getvalue(x);
-    moveInit = getvalue(dInit);
-    moveWithoutCont = getvalue(d);
-    finalHeights = getvalue(finalh);
-    return (Obj,moveWithCont,moveInit,moveWithoutCont,finalHeights);
+    return Obj;
 end
 
 ################################################################################
@@ -98,200 +94,73 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
     redirect_stdout(TT);
     LBObj = getobjectivevalue(LP);
     Wsta = getvalue(wStack);
-    moveWithCont = getvalue(x);
-    moveInit = getvalue(dInit);
-    moveWithoutCont = getvalue(d);
-    finalHeights = getvalue(finalh);
+    WLB = Dict{Array{Int64},Float64}();
+    
     nonIntegralSolution = Dict{Int64,Array{Int64}}();
-    integralSolution = Dict{Int64,Int64}();
-    capacityStack_1 = Dict{Int64,Float64}();
     for m = 1:T
         for s in moveFrom[m]
-            if round(Wsta[m,s],6) < 1 - 0.000001 &&  round(Wsta[m,s],6) > 0.000001
+            WLB[[m,s]] = round(Wsta[m,s],8);
+            if WLB[[m,s]] < 1 - 0.0001 &&  WLB[[m,s]] > 0.0001
                 for r in posteriorStacks[s]
-                    if round(moveWithCont[s,r,orderCont[m]],6) > 0.000001
-                        if m in keys(nonIntegralSolution)
-                            append!(nonIntegralSolution[m],[r]);
-                        else
-                            nonIntegralSolution[m] = [r];
-                        end
-                        if r in keys(capacityStack_1)
-                            capacityStack_1[r] = capacityStack_1[r] + round(moveWithCont[s,r,orderCont[m]],6);
-                        else
-                            capacityStack_1[r] = round(moveWithCont[s,r,orderCont[m]],6);
-                        end
-                    end
-                end
-            else
-                for r in posteriorStacks[s]
-                    if round(moveWithCont[s,r,orderCont[m]],6) > 1 - 0.000001
-                        integralSolution[m] = r;
-                    end
+                    if
+                if m in keys(nonIntegralSolution)
+                    append!(nonIntegralSolution[m],[s]);
+                else
+                    nonIntegralSolution[m] = [s];
                 end
             end
         end
     end
-    capacityStack = Dict{Int64,Int64}();
-    for r in keys(capacityStack_1)
-        capacityStack[r] = ceil(capacityStack_1[r]);
-    end
-    return (LBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights);
+    return (LBObj,WLB,nonIntegralSolution);
 end
 
-function computeAssignmentCost(invOrder,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove)
-    previousSta = posCraneInitial;
-    cost = 0;
-    for o = 1:T
-        Cont = invOrder[o];
-        if Cont <= N
-            cost = cost + costPreMove[[previousSta,intersect(anteriorStacks[StackCont[Cont]],moveFrom[Cont])[1]]] + costMove[[intersect(anteriorStacks[StackCont[Cont]],moveFrom[Cont])[1],StackCont[Cont]]];
-            previousSta = StackCont[Cont];
-        end
-    end
-    return cost;
-end
-
-function firstAssignment(T,integralSolution,nonIntegralSolution,capacityStack)
-    StackCont = zeros(Int64,T);
-    for m in keys(integralSolution)
-        StackCont[m] = integralSolution[m];
-    end
-    SlackRemaining = Dict{Int64,Int64}();
-    capacityStackLoc = Dict{Int64,Int64}();
-    nContperStack = Dict{Int64,Int64}();
-    for m in keys(nonIntegralSolution)
-        SlackRemaining[m] = 0;
-        for r in nonIntegralSolution[m]
-            if r in keys(nContperStack)
-                nContperStack[r] = nContperStack[r] + 1;
-            else
-                nContperStack[r] = 1;
-                capacityStackLoc[r] = capacityStack[r];
-            end
-            SlackRemaining[m] = SlackRemaining[m] + capacityStackLoc[r];
-        end
-    end
-    while length(collect(keys(SlackRemaining))) > 0
-        minSlacks = Array{Int64}(0);
-        for m in keys(SlackRemaining)
-            if SlackRemaining[m] == minimum(collect(values(SlackRemaining)))
-                append!(minSlacks,[m]);
-            end
-        end
-        selectedCont = 0;
-        selectedStack = 0;
-        selectedRatio = 0;
-        for m in minSlacks
-            for r in nonIntegralSolution[m]
-                if capacityStackLoc[r]/nContperStack[r] > selectedRatio
-                    selectedRatio = capacityStackLoc[r]/nContperStack[r];
-                    selectedStack = r;
-                    selectedCont = m;
-                end
-            end
-        end
-        capacityStackLoc[selectedStack] = capacityStackLoc[selectedStack] - 1;
-        for r in nonIntegralSolution[selectedCont]
-            nContperStack[r] = nContperStack[r] - 1;
-        end
-        StackCont[selectedCont] = selectedStack;
-        delete!(SlackRemaining, selectedCont);
-    end
-    return StackCont;
-end
-
-function addDrop(m,StackCont,r)
-    StackContLoc = zeros(Int64,length(StackCont));
-    for i = 1:length(StackCont)
-        StackContLoc[i] = StackCont[i];
-    end
-    StackContLoc[m] = r;
-    return StackContLoc;
-end
-
-function pairwiseExchange(m,StackCont,l)
-    StackContLoc = zeros(Int64,length(StackCont));
-    for i = 1:length(StackCont)
-        StackContLoc[i] = StackCont[i];
-    end
-    StackContLoc[m], StackContLoc[l] = StackContLoc[l], StackContLoc[m];
-    return StackContLoc;
-end
-
-function LocalImprovement(orderCont,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove,capacityStack,nonIntegralSolution)
-    invOrder = zeros(Int64,T);
-    for m = 1:T
-        invOrder[orderCont[m]] = m;
-    end
-    currentValue = computeAssignmentCost(invOrder,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
-    localOptimum = false;
-    while !localOptimum
-        localOptimum = true;
-        bestNewStackCont = zeros(Int64,T);
-        bestNewValue = currentValue;
-        unusedCapacity = Dict{Int64,Int64}();
-        for r in keys(capacityStack)
-            unusedCapacity[r] = capacityStack[r];
-        end
-        for m in keys(nonIntegralSolution)
-            unusedCapacity[StackCont[m]] = unusedCapacity[StackCont[m]] - 1;
-        end
-        for m in keys(nonIntegralSolution)
-            for r in nonIntegralSolution[m]
-                if r != StackCont[m] && unusedCapacity[r] > 0
-                    StackContLoc = addDrop(m,StackCont,r);
-                    locValue = computeAssignmentCost(invOrder,StackContLoc,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
-                    if locValue < bestNewValue
-                        bestNewValue = locValue;
-                        bestNewStackCont = StackContLoc;
-                        localOptimum = false;
-                    end
-                end
-            end
-        end
-        for m in keys(nonIntegralSolution)
-            for l in keys(nonIntegralSolution)
-                if m != l && StackCont[m] in nonIntegralSolution[l] && StackCont[l] in nonIntegralSolution[m]
-                    StackContLoc = pairwiseExchange(m,StackCont,l);
-                    locValue = computeAssignmentCost(invOrder,StackContLoc,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
-                    if locValue < bestNewValue
-                        bestNewValue = locValue;
-                        bestNewStackCont = StackContLoc;
-                        localOptimum = false;
-                    end
-                end
-            end
-        end
-        if !localOptimum
-            currentValue = bestNewValue;
-            for m = 1:N
-                StackCont[m] = bestNewStackCont[m];
-            end
-        end
-    end
-    return StackCont;
-end
-
-function generalizedAssignmentModel(orderCont,T,integralSolution,nonIntegralSolution,capacityStack,posCraneInitial,N,costPreMove,anteriorStacks,moveFrom,costMove)
-    StackCont = firstAssignment(T,integralSolution,nonIntegralSolution,capacityStack);
-    StackCont = LocalImprovement(orderCont,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove,capacityStack,nonIntegralSolution);
-    return StackCont;
-end
-
-function UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityStack,posCraneInitial,costPreMove,anteriorStacks,moveFrom,costMove,SX,posteriorStacks,SY,Z,costToGo,alpha,SR,contMinHeightStack,SB,artificialHeights,moveWithCont,moveInit,moveWithoutCont,finalHeights,LBObj)
-    if length(keys(integralSolution)) == T
+function UpperBound(LBObj,WLB,nonIntegralSolution,orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights)
+    if length(nonIntegralSolution) == 0
         StackCont = zeros(Int64,T);
-        for m in keys(integralSolution)
-            StackCont[m] = integralSolution[m];
+        for m = 1:T
+            for s in moveFrom[m]
+                if WLB[[m,s]] >= 1 - 0.0001
+                    StackCont[m] = s;
+                end
+            end
         end
         UBObj = LBObj;
     else
-        StackCont = generalizedAssignmentModel(orderCont,T,integralSolution,nonIntegralSolution,capacityStack,posCraneInitial,N,costPreMove,anteriorStacks,moveFrom,costMove);
+        nPerIOPoints = Dict{Int64,Float64}();
+        for m in keys(nonIntegralSolution)
+            for s in nonIntegralSolution[m]
+                if s in keys(nPerIOPoints)
+                    nPerIOPoints[s] = nPerIOPoints[s] + WLB[[m,s]];
+                else
+                    nPerIOPoints[s] = WLB[[m,s]];
+                end
+            end
+        end
+        for s in keys(nPerIOPoints)
+            nPerIOPoints[s] = ceil(round(nPerIOPoints[s],7));
+        end
+        StackCont = zeros(Int64,T);
+        for m = 1:T
+            if m in keys(nonIntegralSolution)
+                for s in nonIntegralSolution[m]
+                    if nPerIOPoints[s] != 0 && StackCont[m] == 0
+                        StackCont[m] = s;
+                        nPerIOPoints[s] = nPerIOPoints[s] - 1;
+                    end
+                end
+            else
+                for s in moveFrom[m]
+                    if WLB[[m,s]] >= 1 - 0.0001
+                        StackCont[m] = s;
+                    end
+                end
+            end
+        end
         W = Dict{Array{Int64},Int64}();
         for m = 1:T
             for s in moveFrom[m]
                 for t = 1:T
-                    if t == orderCont[m] && s == intersect(anteriorStacks[StackCont[m]],moveFrom[m])[1]
+                    if t == orderCont[m] && s == StackCont[m]
                         W[[m,s,t]] = 1;
                     else
                         W[[m,s,t]] = 0;
@@ -299,9 +168,9 @@ function UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityS
                 end
             end
         end
-        (UBObj,moveWithCont,moveInit,moveWithoutCont,finalHeights) = costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
+        UBObj = costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
     end
-    return (UBObj,StackCont,moveWithCont,moveInit,moveWithoutCont,finalHeights);
+    return (UBObj,StackCont);
 end
 
 function fullOrderContainers(T, N, permutationProductive, blockingCont)
@@ -320,12 +189,4 @@ function fullOrderContainers(T, N, permutationProductive, blockingCont)
         end
     end
     return orderCont;
-end
-
-function feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,clusterToRealOrder)
-    isSwapPossible = (abs(currentPermuOrder[k] - l) <= changeOrderReal[currentPermuOrder[k]] && abs(currentPermuOrder[l] - k) <= changeOrderReal[currentPermuOrder[l]]);
-    if isSwapPossible
-        isSwapPossible = !(typeOfTruck[clusterToRealOrder[currentPermuOrder[k]]] == "internal" && typeOfTruck[clusterToRealOrder[currentPermuOrder[l]]] == "internal");
-    end
-    return isSwapPossible;
 end
