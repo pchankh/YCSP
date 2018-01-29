@@ -54,18 +54,12 @@ function BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeU
     for t = 1:T
         for m = 1:n
             setvalue(w[m,moveFrom[m][1],t],Wgiven[m,t]);
-            if Wgiven[m,t] == 1
-                currentStackGiven = IOPoints[moveFrom[m][1]][1];
-            end
         end
         for m = n+1:N
-            setvalue(w[m,currentStackGiven,t],Wgiven[m,t]);
+            setvalue(w[m,moveFrom[m][1],t],Wgiven[m,t]);
         end
         for m = N+1:T
             setvalue(w[m,moveFrom[m][1],t],Wgiven[m,t]);
-            if Wgiven[m,t] == 1
-                currentStackGiven = IOPoints[moveFrom[m][1]][1];
-            end
         end
     end
 

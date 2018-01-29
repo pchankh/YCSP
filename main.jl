@@ -39,14 +39,14 @@ posCraneInitial = initializeInitialCrane(randomInitialCrane, R, S, IOPointsPosit
 
 (anteriorStacks,posteriorStacks) = antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint);
 
-moveFrom = defineMoveFromStack(n,N,T,unloadFrom,stackOf);
-
 (costMove, costPreMove, costToGo, alpha) = defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack);
 
 printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial);
 
-(X,DInit,D,finalHeights,W,obj,timeToSolve) = MIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
+(moveFrom,posteriorContStacks,artificialHeights) = defineMoveFromStack(n,N,T,unloadFrom,loadOf,stackOf,heightOf,SB,SR,SO,contMinHeightStack,heightsInitial,realStack);
 
-(X_b,DInit_b,D_b,finalHeights_b,W_b,obj_b,timeToSolve_b) = BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
+(X,DInit,D,finalHeights,W,obj,timeToSolve) = MIP(H, N, n, artificialHeights, moveFrom, toBeUnloaded, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
 
-# printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W);
+# (X_b,DInit_b,D_b,finalHeights_b,W_b,obj_b,timeToSolve_b) = BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
+
+printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W);

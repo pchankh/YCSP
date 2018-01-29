@@ -491,18 +491,35 @@ end
 ## This function defines the moveFrom structure which is defined by
 ## moveFrom[m] is the stacks from which m could be moved
 
-function defineMoveFromStack(n,N,T,unloadFrom,stackOf)
+function defineMoveFromStack(n,N,T,unloadFrom,loadOf,stackOf,heightOf,SB,SR,SO,contMinHeightStack,heightsInitial,realStack)
     moveFrom = Dict{Int64,Array{Int64}}();
+    posteriorContStacks = Dict{Array{Int64},Array{Int64}}();
+    artificialHeights = Dict{Int64,Int64}();
     for m = 1:n
         moveFrom[m] = [stackOf[m]];
+        for s in moveFrom[m]
+            posteriorContStacks[[m,s]] = loadOf[m];
+        end
     end
     for m = n+1:N
         moveFrom[m] = unloadFrom[m];
+        for s in moveFrom[m]
+            posteriorContStacks[[m,s]] = posteriorStacks[s];
+        end
     end
     for m = N+1:T
         moveFrom[m] = [stackOf[m]];
+        for s in moveFrom[m]
+            posteriorContStacks[[m,s]] = intersect(posteriorStacks[s],SB);
+        end
     end
-    return moveFrom;
+    for s in SR
+        artificialHeights[s] = heightOf[contMinHeightStack[s]] - 1;
+    end
+    for s in SO
+        artificialHeights[s] = heightsInitial[realStack[s][1],realStack[s][2]];
+    end
+    return (moveFrom,posteriorContStacks,artificialHeights);
 end
 
 
@@ -714,7 +731,6 @@ function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,rea
         println("Landside");
     end
     for t=1:T
-        println("\n");
         println("-----------------------------");
         println("Time ", t);
         if t == 1
@@ -785,37 +801,39 @@ function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,rea
                 end
             end
         end
-        str = "";
-        if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
-            str = string(str,"\tLeft");
-        end
-        for s = 1:S
-            str = string(str,"\tStack_",s);
-        end
-        if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
-            str = string(str,"\tRight");
-        end
-        println(str);
-        if IOPointsPosition == "up-and-down"
-            println("Seaside");
-        end
-        sta = 0;
-        for r = 1:R
-            str = string("Row_",r);
+        if t == T
+            str = "";
             if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
-                str = string(str,"\t");
+                str = string(str,"\tLeft");
             end
             for s = 1:S
-                sta += 1;
-                str = string(str,"\t",Int64(round(updatedHeights[sta,t+1])));
+                str = string(str,"\tStack_",s);
             end
             if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
-                str = string(str,"\t");
+                str = string(str,"\tRight");
             end
             println(str);
-        end
-        if IOPointsPosition == "up-and-down"
-            println("Landside");
+            if IOPointsPosition == "up-and-down"
+                println("Seaside");
+            end
+            sta = 0;
+            for r = 1:R
+                str = string("Row_",r);
+                if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                for s = 1:S
+                    sta += 1;
+                    str = string(str,"\t",Int64(round(updatedHeights[sta,t+1])));
+                end
+                if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
+                    str = string(str,"\t");
+                end
+                println(str);
+            end
+            if IOPointsPosition == "up-and-down"
+                println("Landside");
+            end
         end
     end
 end
