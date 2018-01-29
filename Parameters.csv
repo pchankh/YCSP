@@ -4,9 +4,9 @@ LimitOfTime (in seconds)			,60
 
 -------------------- Change of Order --------------------
 
-External trucks                     ,2
+External trucks                     ,0
 
-Internal trucks                     ,2
+Internal trucks                     ,5
 
 ------ Position of Truck Loading/Unloading points -------
 

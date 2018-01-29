@@ -36,9 +36,16 @@ function costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,
     @constraint(LP, finalHeightConst[s in SB], sum(h * finalh[s,h] for h = 1:Z) - sum(x[r,s,t] for r in anteriorStacks[s] for t = 1:T) == artificialHeights[s]);
     ## Uniqueness of final height
     @constraint(LP, finalHeightUniq[s in SB], sum(finalh[s,h] for h = 0:Z) == 1);
+    TT = STDOUT; # save original STDOUT stream
+    redirect_stdout();
     status = solve(LP);
+    redirect_stdout(TT);
     Obj = getobjectivevalue(LP);
-    return Obj;
+    moveWithCont = getvalue(x);
+    moveInit = getvalue(dInit);
+    moveWithoutCont = getvalue(d);
+    finalHeights = getvalue(finalh);
+    return (Obj,moveWithCont,moveInit,moveWithoutCont,finalHeights);
 end
 
 ################################################################################
@@ -62,10 +69,9 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
     #####################################################################
     ################# Relation between variables x and w ################
     #####################################################################
-    @constraint(LP, constW_1[m = 1:T,s in moveFrom[m],t = 1:T], sum(x[s,r,t] for r in posteriorContStacks[[m,s]]) >= wStack[m,s]*(t == orderCont[m]));
+    @constraint(LP, constW_1[m = 1:T,s in moveFrom[m]], sum(x[s,r,orderCont[m]] for r in posteriorContStacks[[m,s]]) >= wStack[m,s]);
     @constraint(LP, constW_2[s in SR,t = 1:orderCont[contMinHeightStack[s]]], sum(x[r,s,t] for r in anteriorStacks[s]) == 0);
     @constraint(LP, constW_3[m = 1:T], sum(wStack[m,s] for s in moveFrom[m]) == 1);
-
     #####################################################################
     ##################### Conditions on crane moves #####################
     #####################################################################
@@ -86,76 +92,206 @@ function LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPr
     @constraint(LP, finalHeightConst[s in SB], sum(h * finalh[s,h] for h = 1:Z) - sum(x[r,s,t] for r in anteriorStacks[s] for t = 1:T) == artificialHeights[s]);
     ## Uniqueness of final height
     @constraint(LP, finalHeightUniq[s in SB], sum(finalh[s,h] for h = 0:Z) == 1);
+    TT = STDOUT; # save original STDOUT stream
+    redirect_stdout();
     status = solve(LP);
+    redirect_stdout(TT);
     LBObj = getobjectivevalue(LP);
     Wsta = getvalue(wStack);
-    WLB = Dict{Array{Int64},Float64}();
+    moveWithCont = getvalue(x);
+    moveInit = getvalue(dInit);
+    moveWithoutCont = getvalue(d);
+    finalHeights = getvalue(finalh);
     nonIntegralSolution = Dict{Int64,Array{Int64}}();
+    integralSolution = Dict{Int64,Int64}();
+    capacityStack_1 = Dict{Int64,Float64}();
     for m = 1:T
         for s in moveFrom[m]
-            WLB[[m,s]] = round(Wsta[m,s],4);
-            if WLB[[m,s]] < 1 - 0.0001 &&  WLB[[m,s]] > 0.0001
-                if m in keys(nonIntegralSolution)
-                    append!(nonIntegralSolution[m],[s]);
-                else
-                    nonIntegralSolution[m] = [s];
-                end
-            end
-        end
-        if m in keys(nonIntegralSolution)
-            nonIntegralSolution[m] = sort(nonIntegralSolution[m], rev=true);
-        end
-    end
-    return (LBObj,WLB,nonIntegralSolution);
-end
-
-function UpperBound(LBObj,WLB,nonIntegralSolution,orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights)
-    if length(nonIntegralSolution) == 0
-        StackCont = zeros(Int64,T);
-        for m = 1:T
-            for s in moveFrom[m]
-                if WLB[[m,s]] >= 1 - 0.0001
-                    StackCont[m] = s;
-                end
-            end
-        end
-        UBObj = LBObj;
-    else
-        nPerIOPoints = Dict{Int64,Float64}();
-        for m in keys(nonIntegralSolution)
-            for s in nonIntegralSolution[m]
-                if s in keys(nPerIOPoints)
-                    nPerIOPoints[s] = nPerIOPoints[s] + WLB[[m,s]];
-                else
-                    nPerIOPoints[s] = WLB[[m,s]];
-                end
-            end
-        end
-        for s in keys(nPerIOPoints)
-            nPerIOPoints[s] = round(nPerIOPoints[s]);
-        end
-        StackCont = zeros(Int64,T);
-        for m = 1:T
-            if m in keys(nonIntegralSolution)
-                for s in nonIntegralSolution[m]
-                    if nPerIOPoints[s] != 0 && StackCont[m] == 0
-                        StackCont[m] = s;
-                        nPerIOPoints[s] = nPerIOPoints[s] - 1;
+            if round(Wsta[m,s],6) < 1 - 0.000001 &&  round(Wsta[m,s],6) > 0.000001
+                for r in posteriorStacks[s]
+                    if round(moveWithCont[s,r,orderCont[m]],6) > 0.000001
+                        if m in keys(nonIntegralSolution)
+                            append!(nonIntegralSolution[m],[r]);
+                        else
+                            nonIntegralSolution[m] = [r];
+                        end
+                        if r in keys(capacityStack_1)
+                            capacityStack_1[r] = capacityStack_1[r] + round(moveWithCont[s,r,orderCont[m]],6);
+                        else
+                            capacityStack_1[r] = round(moveWithCont[s,r,orderCont[m]],6);
+                        end
                     end
                 end
             else
-                for s in moveFrom[m]
-                    if WLB[[m,s]] >= 1 - 0.0001
-                        StackCont[m] = s;
+                for r in posteriorStacks[s]
+                    if round(moveWithCont[s,r,orderCont[m]],6) > 1 - 0.000001
+                        integralSolution[m] = r;
                     end
                 end
             end
         end
+    end
+    capacityStack = Dict{Int64,Int64}();
+    for r in keys(capacityStack_1)
+        capacityStack[r] = ceil(capacityStack_1[r]);
+    end
+    return (LBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights);
+end
+
+function computeAssignmentCost(invOrder,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove)
+    previousSta = posCraneInitial;
+    cost = 0;
+    for o = 1:T
+        Cont = invOrder[o];
+        if Cont <= N
+            cost = cost + costPreMove[[previousSta,intersect(anteriorStacks[StackCont[Cont]],moveFrom[Cont])[1]]] + costMove[[intersect(anteriorStacks[StackCont[Cont]],moveFrom[Cont])[1],StackCont[Cont]]];
+            previousSta = StackCont[Cont];
+        end
+    end
+    return cost;
+end
+
+function firstAssignment(T,integralSolution,nonIntegralSolution,capacityStack)
+    StackCont = zeros(Int64,T);
+    for m in keys(integralSolution)
+        StackCont[m] = integralSolution[m];
+    end
+    SlackRemaining = Dict{Int64,Int64}();
+    capacityStackLoc = Dict{Int64,Int64}();
+    nContperStack = Dict{Int64,Int64}();
+    for m in keys(nonIntegralSolution)
+        SlackRemaining[m] = 0;
+        for r in nonIntegralSolution[m]
+            if r in keys(nContperStack)
+                nContperStack[r] = nContperStack[r] + 1;
+            else
+                nContperStack[r] = 1;
+                capacityStackLoc[r] = capacityStack[r];
+            end
+            SlackRemaining[m] = SlackRemaining[m] + capacityStackLoc[r];
+        end
+    end
+    while length(collect(keys(SlackRemaining))) > 0
+        minSlacks = Array{Int64}(0);
+        for m in keys(SlackRemaining)
+            if SlackRemaining[m] == minimum(collect(values(SlackRemaining)))
+                append!(minSlacks,[m]);
+            end
+        end
+        selectedCont = 0;
+        selectedStack = 0;
+        selectedRatio = 0;
+        for m in minSlacks
+            for r in nonIntegralSolution[m]
+                if capacityStackLoc[r]/nContperStack[r] > selectedRatio
+                    selectedRatio = capacityStackLoc[r]/nContperStack[r];
+                    selectedStack = r;
+                    selectedCont = m;
+                end
+            end
+        end
+        capacityStackLoc[selectedStack] = capacityStackLoc[selectedStack] - 1;
+        for r in nonIntegralSolution[selectedCont]
+            nContperStack[r] = nContperStack[r] - 1;
+        end
+        StackCont[selectedCont] = selectedStack;
+        delete!(SlackRemaining, selectedCont);
+    end
+    return StackCont;
+end
+
+function addDrop(m,StackCont,r)
+    StackContLoc = zeros(Int64,length(StackCont));
+    for i = 1:length(StackCont)
+        StackContLoc[i] = StackCont[i];
+    end
+    StackContLoc[m] = r;
+    return StackContLoc;
+end
+
+function pairwiseExchange(m,StackCont,l)
+    StackContLoc = zeros(Int64,length(StackCont));
+    for i = 1:length(StackCont)
+        StackContLoc[i] = StackCont[i];
+    end
+    StackContLoc[m], StackContLoc[l] = StackContLoc[l], StackContLoc[m];
+    return StackContLoc;
+end
+
+function LocalImprovement(orderCont,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove,capacityStack,nonIntegralSolution)
+    invOrder = zeros(Int64,T);
+    for m = 1:T
+        invOrder[orderCont[m]] = m;
+    end
+    currentValue = computeAssignmentCost(invOrder,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
+    localOptimum = false;
+    while !localOptimum
+        localOptimum = true;
+        bestNewStackCont = zeros(Int64,T);
+        bestNewValue = currentValue;
+        unusedCapacity = Dict{Int64,Int64}();
+        for r in keys(capacityStack)
+            unusedCapacity[r] = capacityStack[r];
+        end
+        for m in keys(nonIntegralSolution)
+            unusedCapacity[StackCont[m]] = unusedCapacity[StackCont[m]] - 1;
+        end
+        for m in keys(nonIntegralSolution)
+            for r in nonIntegralSolution[m]
+                if r != StackCont[m] && unusedCapacity[r] > 0
+                    StackContLoc = addDrop(m,StackCont,r);
+                    locValue = computeAssignmentCost(invOrder,StackContLoc,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
+                    if locValue < bestNewValue
+                        bestNewValue = locValue;
+                        bestNewStackCont = StackContLoc;
+                        localOptimum = false;
+                    end
+                end
+            end
+        end
+        for m in keys(nonIntegralSolution)
+            for l in keys(nonIntegralSolution)
+                if m != l && StackCont[m] in nonIntegralSolution[l] && StackCont[l] in nonIntegralSolution[m]
+                    StackContLoc = pairwiseExchange(m,StackCont,l);
+                    locValue = computeAssignmentCost(invOrder,StackContLoc,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove);
+                    if locValue < bestNewValue
+                        bestNewValue = locValue;
+                        bestNewStackCont = StackContLoc;
+                        localOptimum = false;
+                    end
+                end
+            end
+        end
+        if !localOptimum
+            currentValue = bestNewValue;
+            for m = 1:N
+                StackCont[m] = bestNewStackCont[m];
+            end
+        end
+    end
+    return StackCont;
+end
+
+function generalizedAssignmentModel(orderCont,T,integralSolution,nonIntegralSolution,capacityStack,posCraneInitial,N,costPreMove,anteriorStacks,moveFrom,costMove)
+    StackCont = firstAssignment(T,integralSolution,nonIntegralSolution,capacityStack);
+    StackCont = LocalImprovement(orderCont,StackCont,posCraneInitial,T,N,costPreMove,anteriorStacks,moveFrom,costMove,capacityStack,nonIntegralSolution);
+    return StackCont;
+end
+
+function UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityStack,posCraneInitial,costPreMove,anteriorStacks,moveFrom,costMove,SX,posteriorStacks,SY,Z,costToGo,alpha,SR,contMinHeightStack,SB,artificialHeights,moveWithCont,moveInit,moveWithoutCont,finalHeights,LBObj)
+    if length(keys(integralSolution)) == T
+        StackCont = zeros(Int64,T);
+        for m in keys(integralSolution)
+            StackCont[m] = integralSolution[m];
+        end
+        UBObj = LBObj;
+    else
+        StackCont = generalizedAssignmentModel(orderCont,T,integralSolution,nonIntegralSolution,capacityStack,posCraneInitial,N,costPreMove,anteriorStacks,moveFrom,costMove);
         W = Dict{Array{Int64},Int64}();
         for m = 1:T
             for s in moveFrom[m]
                 for t = 1:T
-                    if t == orderCont[m] && s == StackCont[m]
+                    if t == orderCont[m] && s == intersect(anteriorStacks[StackCont[m]],moveFrom[m])[1]
                         W[[m,s,t]] = 1;
                     else
                         W[[m,s,t]] = 0;
@@ -163,9 +299,9 @@ function UpperBound(LBObj,WLB,nonIntegralSolution,orderCont,SX,posteriorStacks,T
                 end
             end
         end
-        UBObj = costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
+        (UBObj,moveWithCont,moveInit,moveWithoutCont,finalHeights) = costFunction(W,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
     end
-    return (UBObj,StackCont);
+    return (UBObj,StackCont,moveWithCont,moveInit,moveWithoutCont,finalHeights);
 end
 
 function fullOrderContainers(T, N, permutationProductive, blockingCont)
@@ -186,76 +322,10 @@ function fullOrderContainers(T, N, permutationProductive, blockingCont)
     return orderCont;
 end
 
-function computeNumberOfOrders(N,vectorChangeOfOrder,nOrders,limitCount)
-    if minimum(vectorChangeOfOrder) < 0
-        return nOrders+0;
-    elseif length(vectorChangeOfOrder) == 1
-        return nOrders+1;
-    else
-        i = 1;
-        while i <= N && nOrders <= limitCount
-            vectorChangeOfOrderLoc = zeros(Int64,N-1);
-            vectorChangeOfOrderLoc[1:i-1] = vectorChangeOfOrder[1:i-1] - 1;
-            vectorChangeOfOrderLoc[i:N-1] = vectorChangeOfOrder[i+1:N];
-            nOrders = computeNumberOfOrders(N-1,vectorChangeOfOrderLoc,nOrders,limitCount);
-            i = i + 1;
-        end
-        return nOrders;
+function feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,clusterToRealOrder)
+    isSwapPossible = (abs(currentPermuOrder[k] - l) <= changeOrderReal[currentPermuOrder[k]] && abs(currentPermuOrder[l] - k) <= changeOrderReal[currentPermuOrder[l]]);
+    if isSwapPossible
+        isSwapPossible = !(typeOfTruck[clusterToRealOrder[currentPermuOrder[k]]] == "internal" && typeOfTruck[clusterToRealOrder[currentPermuOrder[l]]] == "internal");
     end
-end
-
-# function computeNumberOfOrders(N,vectorChangeOfOrder)
-#     if minimum(vectorChangeOfOrder) < 0
-#         return 0;
-#     elseif length(vectorChangeOfOrder) == 1
-#         return 1;
-#     else
-#         nOrders = 0;
-#         for i = 1:N
-#             vectorChangeOfOrderLoc = zeros(Int64,N-1);
-#             vectorChangeOfOrderLoc[1:i-1] = vectorChangeOfOrder[1:i-1] - 1;
-#             vectorChangeOfOrderLoc[i:N-1] = vectorChangeOfOrder[i+1:N];
-#             nOrders = nOrders + computeNumberOfOrders(N-1,vectorChangeOfOrderLoc);
-#         end
-#         return nOrders;
-#     end
-# end
-
-function decodeRec(encode,N,vectorChangeOfOrder,contRemaining)
-    if minimum(vectorChangeOfOrder) < 0
-        return (encode,[]);
-    elseif length(contRemaining) == 1
-        encode = encode - 1;
-        if encode == 0
-            return (encode,[contRemaining[1]]);
-        end
-        return (encode,[]);
-    else
-        for i = 1:N
-            vectorChangeOfOrderLoc = zeros(Int64,N-1);
-            contRemainingLoc = zeros(Int64,N-1);
-            vectorChangeOfOrderLoc[1:i-1] = vectorChangeOfOrder[1:i-1] - 1;
-            contRemainingLoc[1:i-1] = contRemaining[1:i-1];
-            vectorChangeOfOrderLoc[i:N-1] = vectorChangeOfOrder[i+1:N];
-            contRemainingLoc[i:N-1] = contRemaining[i+1:N];
-            (encode,future) = decodeRec(encode,N-1,vectorChangeOfOrderLoc,contRemainingLoc);
-            if encode == 0
-                future = append!([contRemaining[i]],future);
-                return (encode,future);
-            end
-        end
-        return (encode,[]);
-    end
-end
-
-function isInfeasible(permuOrder,N,vectorChangeOfOrder)
-    i = 1;
-    foundInfeasibility = false;
-    countBefore = zeros(Int64,N);
-    while i <= N && !foundInfeasibility
-        foundInfeasibility = (countBefore[permuOrder[i]] > vectorChangeOfOrder[permuOrder[i]]);
-        countBefore[1:permuOrder[i]-1] = countBefore[1:permuOrder[i]-1] + 1;
-        i = i + 1;
-    end
-    return foundInfeasibility;
+    return isSwapPossible;
 end

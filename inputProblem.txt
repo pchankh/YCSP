@@ -1,56 +1,68 @@
 -------------------------------
 MAIN VALUES
 Number of stack (X) : 7
-Number of rows (Y) : 20
+Number of rows (Y) : 30
 Number of tiers (Z) : 4
 IO-points configuration : right-sided
 -------------------------------
 PRODUCTIVE MOVES
 DELIVERIES
-Number of deliveries: 4
+Number of deliveries: 8
 Order	TruckType	TypeRequest	LoadOn	Row	Stack	Tier
-1	internal	delivery	right	10	5	3
-3	internal	delivery	right	2	2	4
-4	external	delivery	right	14	5	3
-7	external	delivery	right	2	5	4
+1	internal	delivery	right	20	7	3
+2	external	delivery	right	13	4	1
+3	external	delivery	right	5	7	2
+6	external	delivery	right	24	2	1
+7	external	delivery	right	20	1	1
+8	internal	delivery	right	13	2	4
+9	internal	delivery	right	17	2	1
+10	internal	delivery	right	22	2	2
 STORAGE
-Number of storage : 4
+Number of storage : 2
 Order	TruckType	TypeRequest	UnloadFrom
-2	internal	storage  	right
+4	external	storage  	right
 5	external	storage  	right
-6	external	storage  	right
-8	internal	storage  	right
 -------------------------------
 COSTS
 Trolley Cost (X) : 0.1
 Wheel Cost (Y) : 1
 Hoisting Cost (Z) : 1
-Cost to Go : 0.0786
+Cost to Go : 0.0943
 -------------------------------
 INITIAL STATE OF BLOCK
 	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Right
-Row_1	4	4	3	3	3	3	4	
-Row_2	2	4	4	2	4	2	3	
-Row_3	3	3	4	2	3	2	3	
-Row_4	4	3	4	4	4	4	3	
-Row_5	3	4	4	2	2	4	4	
-Row_6	4	2	2	3	4	4	2	
-Row_7	3	3	2	4	4	4	3	
-Row_8	4	4	2	2	3	4	4	
-Row_9	4	4	4	3	2	3	4	
-Row_10	2	3	2	4	3	4	4	
-Row_11	2	4	3	3	2	3	4	
-Row_12	4	3	4	3	4	2	4	
-Row_13	4	2	3	3	2	2	3	
-Row_14	3	2	3	4	3	2	2	
-Row_15	3	4	4	2	4	4	3	
-Row_16	3	2	2	3	3	4	3	
-Row_17	4	3	2	2	3	3	3	
-Row_18	4	4	3	2	4	4	4	
-Row_19	3	2	3	4	2	3	4	
-Row_20	4	3	4	3	3	3	4	
+Row_1	2	4	3	3	4	2	3	
+Row_2	4	4	2	4	2	4	2	
+Row_3	4	3	3	4	2	2	3	
+Row_4	4	2	2	4	2	2	4	
+Row_5	4	4	2	3	2	3	4	
+Row_6	2	3	2	4	3	2	4	
+Row_7	4	3	2	2	4	2	2	
+Row_8	4	4	4	4	2	2	3	
+Row_9	2	2	4	2	4	2	3	
+Row_10	3	2	3	4	4	4	3	
+Row_11	4	3	4	2	2	2	2	
+Row_12	2	4	2	3	4	4	4	
+Row_13	3	4	3	2	2	3	3	
+Row_14	4	3	2	4	3	3	3	
+Row_15	2	2	4	4	4	2	2	
+Row_16	3	2	4	2	2	2	2	
+Row_17	3	4	3	4	2	3	4	
+Row_18	4	2	3	4	2	3	3	
+Row_19	2	2	2	2	3	4	3	
+Row_20	2	3	3	4	4	3	3	
+Row_21	2	2	3	3	3	3	2	
+Row_22	3	3	3	4	2	4	4	
+Row_23	3	4	3	4	3	4	2	
+Row_24	2	3	2	4	2	3	2	
+Row_25	3	2	3	4	4	2	2	
+Row_26	3	4	2	4	2	3	4	
+Row_27	4	2	3	4	3	4	4	
+Row_28	3	4	4	3	3	3	2	
+Row_29	3	3	3	3	4	2	3	
+Row_30	2	3	3	2	3	3	4	
 -------------------------------
 INITIAL STATE OF CRANE
 Row	Stack
-5	4
+12	6
 -------------------------------

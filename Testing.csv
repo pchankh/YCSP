@@ -2,8 +2,8 @@
 
 NumberOfStacks (X)					,7
 
-NumberOfRows (Y)					,20
+NumberOfRows (Y)					,30
 
-NumberOfActions						,8
+NumberOfActions						,10
 
-NumberOfRetrievals					,4
+NumberOfRetrievals					,8
