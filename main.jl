@@ -1,187 +1,109 @@
-using JuMP, Clp
+
 ################################################################################
 ########################## SET PROBLEM PARAMETERS ##############################
 ################################################################################
-newPackage = false;
-if Pkg.installed("JuMP") == nothing
-  Pkg.add("JuMP");
-  newPackage = true;
-end
-if Pkg.installed("Clp") == nothing
-  Pkg.add("Clp");
-  newPackage = true;
-end
 ## Set the directory to current directory of main.jl
 cd(dirname(Base.source_path()));
-## Load the side script
-include("auxilaryFunctions.jl");
 ## Loading Packages and setting the working directory
-using JuMP, Clp
+using JuMP, Gurobi, DataFrames, StatsBase
+include("readInstances.jl");
+include("simulateScenario.jl");
+include("IPSolver.jl");
+include("heuristic.jl");
 
-testing = true;
+## Set parameters for each instance
+X = 7;
+Y = 30;
+Z = 4;
+fillRate = 0.67;
+IOPointsPosition = "Asian-right";
+nRequests = 1000;
+gap = X*Y;
 
-startTime = time();
+## Instance number you want to consider
+instanceNumber = 1;
 
-################################################################################
-############################### LOAD INPUT DATA ################################
-################################################################################
-
-(limitOfTime,changeOfOrder,IOPointsPosition,Z,stackCost,rowCost,relocCost) = loadParametersFun();
-
-(X,Y,Z,heightsInitial) = initialHeightsFun(Z,testing);
-
-(SB,SI,realStack) = basicSetsFun(X,Y,IOPointsPosition);
-
-(IOPoints,innerPoints,nameIOPoint,groupIOPoint) = IOPointsFun(SI,SB,realStack);
-
-(posCraneInitial) = cranePositionFun(X,Y,IOPointsPosition,testing,SB,SI);
-
-(N,n,realToClusterOrder,clusterToRealOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded) = productionMovesFun(testing,X,Y,heightsInitial);
-
-(stackOf,heightOf,loadOf,SR,SO,SL,SY) = retrievalsBasicsFun(X,n,SB,toBeLoaded,toRetrieve,groupIOPoint,IOPoints);
-
-(T,contMinHeightStack,artificialHeights,previousContToMove,blockingCont) = reshufflesBasicsFun(N,n,SR,SO,heightsInitial,realStack,stackOf,heightOf);
-
-(unloadFrom,SU,SX) = storageBasicsFun(N,n,toBeUnloaded,groupIOPoint);
-
-(anteriorStacks,posteriorStacks,moveFrom,posteriorContStacks) = antePostStacks(N,T,SR,SU,SO,SL,IOPoints,innerPoints,unloadFrom,loadOf,stackOf);
-
-(costMove,costPreMove,costToGo,alpha) = defineCosts(n,X,Y,Z,SX,SY,posCraneInitial,posteriorStacks,rowCost,stackCost,relocCost,realStack);
-
-printProblem(X,Y,Z,IOPointsPosition,N,n,clusterToRealOrder,realToClusterOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial);
-
-################################################################################
-################################### SOLVER #####################################
-################################################################################
-
-println("Progress : 0.00 % |                                                   |");
-changeOrderReal = zeros(Int64,N);
-for o = 1:N
-    changeOrderReal[o] = min(changeOfOrder[typeOfTruck[o]],N);
-end
-currentPermuOrder = collect(1:N);
-currentPermuOrder = checkFeasibilityFCFS(currentPermuOrder,N,realToClusterOrder,stackOf,heightOf,changeOrderReal);
-IdCurrentPermuOrder = collect(1:N);
-for m = 1:N
-    IdCurrentPermuOrder[m] = currentPermuOrder[m]
-end
-permutationProductive = realToClusterOrder[currentPermuOrder];
-orderCont = fullOrderContainers(T, N, permutationProductive, blockingCont);
-(IdLBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights) = LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
-(IdUBObj,StackCont,moveWithContBest,moveInitBest,moveWithoutContBest,finalHeightsBest) = UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityStack,posCraneInitial,costPreMove,anteriorStacks,moveFrom,costMove,SX,posteriorStacks,SY,Z,costToGo,alpha,SR,contMinHeightStack,SB,artificialHeights,moveWithCont,moveInit,moveWithoutCont,finalHeights,IdLBObj);
-bestUBObj = IdUBObj;
-PairsSwap = Dict{Int64,Array{Int64}}();
-ind = 0;
-for g = 1:N-1
-    for h = g+1:N
-        ind = ind + 1;
-        PairsSwap[ind] = [g,h];
-    end
-end
-i = 1;
-nLocal = 0;
-currentUBObj = IdUBObj;
-bestOrder = collect(1:N);
-bestOrderCont = orderCont;
-bestStackCont = StackCont;
-nTotalLocal = T;
-alreadyVisited = Dict{Array{Int64},Array{Int64}}();
-currentPermuOrderLoc = zeros(N);
-for ic = 1:N
-    currentPermuOrderLoc[ic] = currentPermuOrder[ic];
-end
-alreadyVisited[currentPermuOrderLoc] = [];
-while nLocal <= nTotalLocal && time() - startTime <= limitOfTime
-    k_1 = round(max(nLocal/nTotalLocal,(time() - startTime)/limitOfTime)*100,2);
-    if k_1 <= 99.99 && k_1 >= 10.00
-        k_1 = round(k_1,1);
-    end
-    k_2 = Int64(ceil(k_1/2));
-    if k_1 < 100
-        println(string("Progress : ", string(k_1), " % |", "="^k_2 ,">", " "^(50-k_2), "|"));
-    else
-        println(string("Progress : ", "100  % |", "="^k_2 ,">", " "^(50-k_2), "|"));
-    end
-    visitExchange = randperm(Int64(N*(N-1)/2));
-    foundImprovedNeighbor = false;
-    j = 1;
-    while j <= N*(N-1)/2 && !foundImprovedNeighbor && time() - startTime <= limitOfTime
-        k = PairsSwap[visitExchange[j]][1];
-        l = PairsSwap[visitExchange[j]][2];
-        if !foundImprovedNeighbor && feasibleSwap(k,l,currentPermuOrder,changeOrderReal,typeOfTruck,realToClusterOrder,stackOf,heightOf) && !(visitExchange[j] in alreadyVisited[currentPermuOrder])
-            i = i + 1;
-            currentPermuOrder[k], currentPermuOrder[l] = currentPermuOrder[l], currentPermuOrder[k];
-            permutationProductive = realToClusterOrder[currentPermuOrder];
-            orderCont = fullOrderContainers(T, N, permutationProductive, blockingCont);
-            (LBObj,nonIntegralSolution,integralSolution,capacityStack,moveWithCont,moveInit,moveWithoutCont,finalHeights) = LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
-            if LBObj < currentUBObj
-                (UBObj,StackCont,moveWithCont,moveInit,moveWithoutCont,finalHeights) = UpperBound(T,N,orderCont,nonIntegralSolution,integralSolution,capacityStack,posCraneInitial,costPreMove,anteriorStacks,moveFrom,costMove,SX,posteriorStacks,SY,Z,costToGo,alpha,SR,contMinHeightStack,SB,artificialHeights,moveWithCont,moveInit,moveWithoutCont,finalHeights,LBObj);
-                if currentUBObj > UBObj
-                    foundImprovedNeighbor = true;
-                    currentUBObj = UBObj;
-                    if bestUBObj > currentUBObj
-                        bestOrder = currentPermuOrder;
-                        bestUBObj = currentUBObj;
-                        bestOrderCont = orderCont;
-                        bestStackCont = StackCont;
-                        moveWithContBest = moveWithCont;
-                        moveInitBest = moveInit;
-                        moveWithoutContBest = moveWithoutCont;
-                        finalHeightsBest = finalHeights;
-                    end
-                    if !(currentPermuOrder in keys(alreadyVisited))
-                        currentPermuOrderLoc = zeros(N);
-                        for ic = 1:N
-                            currentPermuOrderLoc[ic] = currentPermuOrder[ic];
-                        end
-                        alreadyVisited[currentPermuOrderLoc] = [];
-                    end
-                else
-                    currentPermuOrder[k], currentPermuOrder[l] = currentPermuOrder[l], currentPermuOrder[k];
-                    currentPermuOrderLoc = zeros(N);
-                    for ic = 1:N
-                        currentPermuOrderLoc[ic] = currentPermuOrder[ic];
-                    end
-                    append!(alreadyVisited[currentPermuOrderLoc],visitExchange[j]);
-                end
-            else
-                currentPermuOrder[k], currentPermuOrder[l] = currentPermuOrder[l], currentPermuOrder[k];
-                currentPermuOrderLoc = zeros(N);
-                for ic = 1:N
-                    currentPermuOrderLoc[ic] = currentPermuOrder[ic];
-                end
-                append!(alreadyVisited[currentPermuOrderLoc],visitExchange[j]);
-            end
-        end
-        j = j + 1;
-    end
-    if !foundImprovedNeighbor
-        nLocal = nLocal + 1;
-        for m = 1:N
-            currentPermuOrder[m] = IdCurrentPermuOrder[m];
-        end
-        currentUBObj = IdUBObj;
-    end
-end
-moveWithCont = moveWithContBest;
-moveInit = moveInitBest;
-moveWithoutCont = moveWithoutContBest;
-finalHeights = finalHeightsBest;
-orderContStack = Dict{Array{Int64},Int64}();
-for m = 1:T
-    for s in moveFrom[m]
-        for t = 1:T
-            if t == bestOrderCont[m] && s in anteriorStacks[bestStackCont[m]]
-                orderContStack[[m,s,t]] = 1;
-            else
-                orderContStack[[m,s,t]] = 0;
-            end
-        end
-    end
+## Say which method you want to use the problem to solver
+## Choose limitOfTime,  Select between
+## 1) FCFS_Myopic_Restricted (Set restricted = true, gamma = 0 and flexibilityRequests = 0)
+## 2) Flexible_Myopic_Restricted (Set restricted = true, gamma = 0 and choose flexibilityRequests)
+## 3) Flexible_Restricted (Set restricted = true and choose gamma and flexibilityRequests)
+## 4) Flexible (Set restricted = false and choose gamma and flexibilityRequests)
+## 5) Heuristic (Choose gamma and flexibilityRequests, NSamples and nTotalLocal)
+method = "Flexible_Restricted";
+restricted = true;
+gamma = Z*(Z-1)*(1/vZEmpty+1/vZLoaded) + 0.1;
+flexibilityRequests = Dict{AbstractString,Array{Int64}}();
+flexibilityRequests["internal"] = [0 2];
+flexibilityRequests["external"] = [2 0];
+NSamples = 20;
+nTotalLocal = 20;
+if method == "FCFS_Myopic_Restricted"
+    gamma = 0;
+    flexibilityRequests["internal"] = [0 0];
+    flexibilityRequests["external"] = [0 0];
+elseif method == "Flexible_Myopic_Restricted"
+    gamma = 0;
+elseif method == "Flexible"
+    retricted = false;
 end
 
-################################################################################
-################################### OUTPUT #####################################
-################################################################################
+## Solver time limit
+limitOfTime = 60;
 
-printResult(IOPointsPosition,X,Y,heightsInitial,realStack,T,moveInit,posCraneInitial,nameIOPoint,SB,SX,SY,moveWithoutCont,posteriorStacks,moveWithCont,N,n,SL,SU,orderContStack,stackOf,unloadFrom,clusterToRealOrder,finalHeights);
+## Set the simulation parameters
+N = 5;
+nPeriods = Int64(floor(nRequests/N));
+
+## Set the crane parameters Speeds must be in containers/s and timeHandling in sec
+vXEmpty = 0.5;
+vXLoaded = 0.5;
+vYEmpty = 0.37;
+vYLoaded = 0.2;
+vZEmpty = 0.39;
+vZLoaded = 0.20;
+timeHandling = 20;
+
+## Saving parameters
+printSolutions = false;
+subFileName = string("Flex_",gamma);
+
+
+
+
+
+
+
+
+
+################################################################################
+############################ SETTING UP SIMULATION #############################
+################################################################################
+nameFolder = joinpath("Inputs",string(X,"X_",Y,"Y_",Z,"Z_",fillRate,"fill_",IOPointsPosition,"_",nRequests,"req_",gap,"gap"));
+if restricted
+    outputFolder = joinpath("Outputs",string(X,"X_",Y,"Y_",Z,"Z_",fillRate,"fill_",IOPointsPosition,"_",nRequests,"req_",gap,"gap"),string(instanceNumber),string(N,"_",subFileName,"_Restricted"));
+else
+    outputFolder = joinpath("Outputs",string(X,"X_",Y,"Y_",Z,"Z_",fillRate,"fill_",IOPointsPosition,"_",nRequests,"req_",gap,"gap"),string(instanceNumber),string(N,"_",subFileName));
+end
+if !ispath(outputFolder)
+    mkpath(outputFolder);
+end
+(heightsBlock,positionCont,blockID,SB,SI,realStack,nameIOPoint,groupIOPoint,posCraneInitial,costEmptyDrive,costLoadedDrive,vZ,costVerticalDrive,beta,scenario) = readInstances(nameFolder,instanceNumber,X,Y,Z,fillRate,IOPointsPosition,vXEmpty,vXLoaded,vYEmpty,vYLoaded,vZEmpty,vZLoaded,timeHandling,gamma,N);
+performanceMetrics = DataFrame(Total_Cost = Array{Float64}(nPeriods+1), Ratio_Reloc_Prod = Array{Float64}(nPeriods+1), Horiz_Cost = Array{Float64}(nPeriods+1),Vert_Cost = Array{Float64}(nPeriods+1),nReloc = Array{Int64}(nPeriods+1));
+for period = 1:nPeriods
+    println(period,"/",nPeriods);
+    (NS,NR,delta,L,E,SR,minStack,heightsTilde,NBar,NU,blockingCont,requestsID,SL,SE,cstVerticalCost) = simulateScenario(period,scenario,N,SB,heightsBlock,realStack,groupIOPoint,positionCont,Z,flexibilityRequests,blockID,costVerticalDrive,vZ,printSolutions,outputFolder);
+    # (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial) = IPSolver(limitOfTime,NBar,L,SL,SE,SB,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,heightsTilde,restricted,blockingCont,N,minStack,delta,SR,cstVerticalCost,vZ,NR,NS,NU,E,requestsID,heightsBlock,positionCont,blockID,realStack,nameIOPoint,printSolutions,outputFolder,period);
+    (horizontalCost,verticalCost,heightsBlock,positionCont,blockID,posCraneInitial) = heuristic(nTotalLocal,NSamples,N,blockingCont,NU,NR,NS,NBar,limitOfTime,delta,L,SL,SE,SB,heightsTilde,Z,costEmptyDrive,posCraneInitial,costLoadedDrive,beta,E,SR,minStack,cstVerticalCost,vZ,printSolutions,outputFolder,realStack,requestsID,nameIOPoint,IOPointsPosition,X,Y,heightsBlock,positionCont,blockID,period);
+    performanceMetrics[:Total_Cost][period+1] = round(horizontalCost + verticalCost,2);
+    performanceMetrics[:Ratio_Reloc_Prod][period+1] = round((NBar-N)/N,4);
+    performanceMetrics[:Horiz_Cost][period+1] = round(horizontalCost,2);
+    performanceMetrics[:Vert_Cost][period+1] = round(verticalCost,2);
+    performanceMetrics[:nReloc][period+1] = NBar-N;
+end
+performanceMetrics[:Total_Cost][1] = round(sum(performanceMetrics[:Total_Cost][2:nPeriods+1]),2);
+performanceMetrics[:Ratio_Reloc_Prod][1] = round(mean(performanceMetrics[:Ratio_Reloc_Prod][2:nPeriods+1]),4);
+performanceMetrics[:Horiz_Cost][1] = round(sum(performanceMetrics[:Horiz_Cost][2:nPeriods+1]),2);
+performanceMetrics[:Vert_Cost][1] = round(sum(performanceMetrics[:Vert_Cost][2:nPeriods+1]),2);
+performanceMetrics[:nReloc][1] = sum(performanceMetrics[:nReloc][2:nPeriods+1]);
+# writetable(joinpath(outputFolder,"0_TotalResults"), performanceMetrics, separator = ',', header = true);
