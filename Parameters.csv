@@ -1,16 +1,16 @@
 --------------------- Problem Size ----------------------
 
-NumberOfRows						,10
+NumberOfRows						,20
 
-NumberOfStacks						,5
+NumberOfStacks						,6
 
-MaximumTiers						,4
+MaximumTiers						,5
 
 IOPointsPosition					,right-sided
 
 --------------------- NumberOfActions --------------------
 
-NumberOfActions						,7
+NumberOfActions						,5
 
 NumberOfRetrievals					,3
 
@@ -32,10 +32,10 @@ PrintSolver							,1
 
 --------------------- Random Inputs ---------------------
 
-InitialPositionOfCrane				,false
+InitialPositionOfCrane				,true
 
-InitialHeights						,false
+InitialHeights						,true
 
-RetrievalsAttributes				,false
+RetrievalsAttributes				,true
 
-StackingsAttributes					,false
+StackingsAttributes					,true

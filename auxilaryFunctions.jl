@@ -548,8 +548,9 @@ function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCo
             costPreMove[[s,r]] = rowCost * abs(realStack[s][1] - realStack[r][1]) + stackCost * abs(realStack[s][2] - realStack[r][2]);
         end
     end
+    costToGo = (n+1)/(R*S)*(2*(relocCost+min(rowCost,stackCost)));
     # costToGo = 1/(R*S);
-    costToGo = sqrt(N)/(R*S);
+    # costToGo = sqrt(N)/(R*S);
     # costToGo = sqrt(T/(R*S));
     # costToGo = T/sqrt(R*S);
     alpha = Array{Float64}(H,1);

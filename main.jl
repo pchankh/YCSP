@@ -1,4 +1,4 @@
-using JuMP, Gurobi, AmplNLWriter, MathProgBase, DataStructures
+using JuMP, Gurobi, AmplNLWriter, MathProgBase, DataStructures, Permutations
 cd(dirname(Base.source_path()));
 include("auxilaryFunctions.jl");
 include("MIP.jl");
