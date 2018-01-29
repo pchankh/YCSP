@@ -1,0 +1,7 @@
+1,internal,delivery,right,1,2,1
+2,internal,storage,right
+3,internal,delivery,right,1,5,4
+4,external,storage,right
+5,external,delivery,right,3,3,1
+6,external,storage,right
+7,external,storage,right

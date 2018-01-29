@@ -1,0 +1,78 @@
+-------------------------------
+BLOCK STATE AT THE BEGINNING
+	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Right
+Row_1	4	4	3	3	3	3	4	
+Row_2	2	4	4	2	4	2	3	
+Row_3	3	3	4	2	3	2	3	
+Row_4	4	3	4	4	4	4	3	
+Row_5	3	4	4	2	2	4	4	
+Row_6	4	2	2	3	4	4	2	
+Row_7	3	3	2	4	4	4	3	
+Row_8	4	4	2	2	3	4	4	
+Row_9	4	4	4	3	2	3	4	
+Row_10	2	3	2	4	3	4	4	
+Row_11	2	4	3	3	2	3	4	
+Row_12	4	3	4	3	4	2	4	
+Row_13	4	2	3	3	2	2	3	
+Row_14	3	2	3	4	3	2	2	
+Row_15	3	4	4	2	4	4	3	
+Row_16	3	2	2	3	3	4	3	
+Row_17	4	3	2	2	3	3	3	
+Row_18	4	4	3	2	4	4	4	
+Row_19	3	2	3	4	2	3	4	
+Row_20	4	3	4	3	3	3	4	
+-----------------------------
+Time 1
+Crane moves from [5 4] to [10 5]
+Retrieve container 1 from [10 5] to 10 right
+-----------------------------
+Time 2
+Crane stays at 10 right
+Stack container 2 from 10 right on [10 5]
+-----------------------------
+Time 3
+Crane moves from [10 5] to [14 5]
+Retrieve container 4 from [14 5] to 14 right
+-----------------------------
+Time 4
+Crane moves from 14 right to 13 right
+Stack container 6 from 13 right on [13 2]
+-----------------------------
+Time 5
+Crane moves from [13 2] to [2 2]
+Retrieve container 3 from [2 2] to 2 right
+-----------------------------
+Time 6
+Crane stays at 2 right
+Stack container 5 from 2 right on [2 6]
+-----------------------------
+Time 7
+Crane moves from [2 6] to [2 5]
+Retrieve container 7 from [2 5] to 2 right
+-----------------------------
+Time 8
+Crane stays at 2 right
+Stack container 8 from 2 right on [2 7]
+-----------------------------
+BLOCK STATE AT THE END
+	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Right
+Row_1	4	4	3	3	3	3	4	
+Row_2	2	3	4	2	3	3	4	
+Row_3	3	3	4	2	3	2	3	
+Row_4	4	3	4	4	4	4	3	
+Row_5	3	4	4	2	2	4	4	
+Row_6	4	2	2	3	4	4	2	
+Row_7	3	3	2	4	4	4	3	
+Row_8	4	4	2	2	3	4	4	
+Row_9	4	4	4	3	2	3	4	
+Row_10	2	3	2	4	3	4	4	
+Row_11	2	4	3	3	2	3	4	
+Row_12	4	3	4	3	4	2	4	
+Row_13	4	3	3	3	2	2	3	
+Row_14	3	2	3	4	2	2	2	
+Row_15	3	4	4	2	4	4	3	
+Row_16	3	2	2	3	3	4	3	
+Row_17	4	3	2	2	3	3	3	
+Row_18	4	4	3	2	4	4	4	
+Row_19	3	2	3	4	2	3	4	
+Row_20	4	3	4	3	3	3	4	

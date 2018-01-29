@@ -1,52 +1,34 @@
-using JuMP, Gurobi, AmplNLWriter, MathProgBase, DataStructures, Permutations
+using JuMP, Gurobi, AmplNLWriter, MathProgBase, DataStructures
 cd(dirname(Base.source_path()));
 include("auxilaryFunctions.jl");
-include("MIP.jl");
 include("BIP.jl");
 
-parametersData = readcsv("Parameters.csv", header=false);
+testing = true;
 
-R = parametersData[2,2];
-S = parametersData[3,2];
-H = parametersData[4,2];
-IOPointsPosition = parametersData[5,2];
+(limitOfTime,changeOfOrder,IOPointsPosition,Z,stackCost,rowCost,relocCost) = loadParametersFun();
 
-N = parametersData[7,2];
-n = parametersData[8,2];
+(X,Y,Z,heightsInitial) = initialHeightsFun(Z,testing);
 
-stackCost = parametersData[10,2];
-rowCost = parametersData[11,2];
-relocCost = parametersData[12,2];
+(SB,SI,realStack) = basicSetsFun(X,Y,IOPointsPosition);
 
-limitOfTime = parametersData[14,2];
-gapOfMIP = parametersData[15,2];
-printSolver = parametersData[16,2];
+(IOPoints,innerPoints,nameIOPoint,groupIOPoint) = IOPointsFun(SI,SB,realStack);
 
-randomInitialCrane = parametersData[18,2];
-randomInitialHeights = parametersData[19,2];
-randomRetrieval = parametersData[20,2];
-randomStacking = parametersData[21,2];
+(posCraneInitial) = cranePositionFun(X,Y,IOPointsPosition,testing,SB,SI);
 
-(heightsInitial, R, S, H) = initializeInitialHeights(randomInitialHeights, R, S, H);
+(N,n,realToClusterOrder,clusterToRealOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded) = productionMovesFun(testing,X,Y,heightsInitial);
 
-(SB,SI,Stot,realStack,IOPoints,innerPoints,nameIOPoint,groupIOPoint) = initializeMainValues(R,S,IOPointsPosition);
+(stackOf,heightOf,loadOf,SR,SO,SL,SY) = retrievalsBasicsFun(X,n,SB,toBeLoaded,toRetrieve,groupIOPoint,IOPoints);
 
-posCraneInitial = initializeInitialCrane(randomInitialCrane, R, S, IOPointsPosition, SI, Stot);
+(T,contMinHeightStack,artificialHeights,previousContToMove,blockingCont) = reshufflesBasicsFun(N,n,SR,SO,heightsInitial,realStack,stackOf,heightOf);
 
-(T,SR,SO,SL,SY,stackOf,heightOf,loadOf,contStackIOPoint,contMinHeightStack,previousContToMove,toRetrieve,toBeLoaded) = initializeRetrievals(n,S,SB,heightsInitial,IOPoints, groupIOPoint,IOPointsPosition);
+(unloadFrom,SU,SX) = storageBasicsFun(N,n,toBeUnloaded,groupIOPoint);
 
-(unloadFrom, SU, SX, contStackableIOPoint, toBeUnloaded) = initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint);
+(anteriorStacks,posteriorStacks,moveFrom,posteriorContStacks) = antePostStacks(N,T,SR,SU,SO,SL,IOPoints,innerPoints,unloadFrom,loadOf,stackOf);
 
-(anteriorStacks,posteriorStacks) = antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint);
+(costMove,costPreMove,costToGo,alpha) = defineCosts(n,X,Y,Z,SX,SY,posCraneInitial,posteriorStacks,rowCost,stackCost,relocCost,realStack);
 
-(costMove, costPreMove, costToGo, alpha) = defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack);
+printProblem(X,Y,Z,IOPointsPosition,N,n,realToClusterOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial);
 
-printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial);
+(moveWithCont,moveInit,moveWithoutCont,finalHeights,orderContStack,obj) = BIP(limitOfTime,T,moveFrom,SX,posteriorStacks,SY,SB,Z,costMove,costPreMove,posCraneInitial,costToGo,alpha,N,realToClusterOrder,changeOfOrder,typeOfTruck,previousContToMove,posteriorContStacks,SR,contMinHeightStack,anteriorStacks,artificialHeights);
 
-(moveFrom,posteriorContStacks,artificialHeights) = defineMoveFromStack(n,N,T,unloadFrom,loadOf,stackOf,heightOf,SB,SR,SO,contMinHeightStack,heightsInitial,realStack);
-
-(X,DInit,D,finalHeights,W,obj,timeToSolve) = MIP(H, N, n, artificialHeights, moveFrom, toBeUnloaded, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
-
-(X_b,DInit_b,D_b,finalHeights_b,W_b,obj_b,timeToSolve_b) = BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
-
-# printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W);
+printResult(IOPointsPosition,X,Y,heightsInitial,realStack,T,moveInit,posCraneInitial,nameIOPoint,SB,SX,SY,moveWithoutCont,posteriorStacks,moveWithCont,N,n,SL,SU,orderContStack,stackOf,unloadFrom,clusterToRealOrder,finalHeights);

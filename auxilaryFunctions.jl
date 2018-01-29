@@ -1,131 +1,145 @@
 
 ################################################################################
-########################### randomInitialHeightsFun ############################
+############################## loadParametersFun ###############################
 ################################################################################
-
-## This function is used by initializeInitialHeights defined below
-## This functions generates random heights for the whole block given R, S and H
-## Note that each height is drawn uniformely at random from H-2 to H (to keep the
-## utilization rate of the block high)
-## Finally, if the number of containers if too high i.e. C > R * (S*H - (H-1))
-## we retrieve a container from a random column until C <= R * (S*H - (H-1))
-function randomInitialHeightsFun(R,S,H)
-    heightsInitial = rand(H-2:H,R,S);
-    C = sum(heightsInitial);
-    while C > R * (S*H - (H-1))
-        row = rand(1:R);
-        stack = rand(1:S);
-        while heightsInitial[row,stack] == 0
-            row = rand(1:R);
-            stack = rand(1:S);
-        end
-        heightsInitial[row,stack] -= 1;
-        C -= 1;
-    end
-    return heightsInitial;
+## This function loads the parameters entered as inputs in Parameters.csv
+function loadParametersFun()
+    parametersData = readcsv("Parameters.csv", header=false);
+    limitOfTime = parametersData[2,2];
+    changeOfOrder = Dict{AbstractString,Int64}();
+    changeOfOrder["external"] = parametersData[4,2];
+    changeOfOrder["internal"] = parametersData[5,2];
+    IOPointsPosition = parametersData[7,2];
+    Z = parametersData[9,2];
+    stackCost = parametersData[10,2];
+    rowCost = parametersData[11,2];
+    relocCost = parametersData[12,2];
+    return (limitOfTime,changeOfOrder,IOPointsPosition,Z,stackCost,rowCost,relocCost);
 end
 
 ################################################################################
-########################### initializeInitialHeights ###########################
+############################## initialHeightsFun ###############################
 ################################################################################
-
 ## This function defines heightsInitial, the heights of stacks in the block.
-## If the input is not random, R, S, H are redifined using the input file.
-function initializeInitialHeights(randomInitialHeights, R, S, H)
-    if randomInitialHeights
-        heightsInitial = randomInitialHeightsFun(R,S,H);
-    else
+## It loads the current configuration of the block from block.csv and compute X
+## and Y accordingly.
+## If Z is set lower than the heighest stack in block.csv, then Z is increased
+## (with a WARNING message).
+function initialHeightsFun(Z,testing)
+## For non-testing
+    if !testing
         heightsInitial = readcsv("block.csv", header=false, Int64);
-        if R != size(heightsInitial,1)
-            println("The number of rows was automatically changed from ", R, " to ", size(heightsInitial,1));
-            R = size(heightsInitial,1);
+        X = size(heightsInitial,2);
+        Y = size(heightsInitial,1);
+        if Z < maximum(heightsInitial)
+            println("WARNING: The maximum number of tiers was set too low given the input block configuration");
+            println("The number of tiers was automatically changed from ", Z, " to ", maximum(heightsInitial));
+            Z = maximum(heightsInitial);
         end
-        if S != size(heightsInitial,2)
-            println("The number of stacks was automatically changed from ", S, " to ", size(heightsInitial,2));
-            S = size(heightsInitial,2);
-        end
-        if H != maximum(heightsInitial)
-            println("The number of tiers was automatically changed from ", H, " to ", maximum(heightsInitial));
-            H = maximum(heightsInitial);
+    else
+## For testing
+        testingData = readcsv("Testing.csv", header=false);
+        X = testingData[2,2];
+        Y = testingData[3,2];
+        heightsInitial = rand(Int64(ceil(Z/2)):Z,Y,X);
+        C = sum(heightsInitial);
+        while C > Y * (X*Z - (Z-1))
+            row = rand(1:Y);
+            stack = rand(1:X);
+            while heightsInitial[row,stack] == 0
+                row = rand(1:Y);
+                stack = rand(1:X);
+            end
+            heightsInitial[row,stack] -= 1;
+            C -= 1;
         end
     end
-    return (heightsInitial, R, S, H);
+    return (X,Y,Z,heightsInitial);
 end
 
 ################################################################################
-############################# initializeMainValues #############################
+################################ basicSetsFun ##################################
 ################################################################################
-
 ## This function initializes the basic stack sets
 ## SB: stacks in the block
 ## SI: stacks corresponding to IO-points
-## Stot: All potential stacks
 ## This function also creates the map realStack such that
 ## realStack[s] is a 2 dimensional vector
-## realStack[s][1] provides the actual row of stack s
-## realStack[s][2] provides the actual stack of stack s
-## Finally, it defines IOPoint the map such that
-## IOPoint[s] is the set of IO-points which are linked to stack s
-## nameIOPoint[s] is for the purpose of printing the solution
-function initializeMainValues(R, S, IOPointsPosition)
-    SB = 1:R*S;
+## realStack[s][1] provides the actual row of stack s (Y position)
+## realStack[s][2] provides the actual stack of stack s (X position)
+function basicSetsFun(X,Y,IOPointsPosition)
+    SB = 1:X*Y;
+    SI = UnitRange{Int64};
     if IOPointsPosition == "left-sided" || IOPointsPosition == "right-sided"
-        SI = R*S+1:R*S+R;
+        SI = X*Y+1:X*Y+Y;
     elseif IOPointsPosition == "two-sided"
-        SI = R*S+1:R*S+2*R;
+        SI = X*Y+1:X*Y+2*Y;
     elseif IOPointsPosition == "up-and-down"
-        SI = R*S+1:R*S+2*S;
+        SI = X*Y+1:X*Y+2*X;
+    else
+        error("WARNING: IOPointsPosition should either be left-sided, right-sided, two-sided or up-and-down!")
     end
-    Stot = union(SB,SI);
     realStack = Dict{Int64,Array{Int64}}();
     for s in SB
         realStack[s] = Array{Int64}(1,2);
-        realStack[s][1] = ceil(s/S);
-        realStack[s][2] = s - (realStack[s][1]-1)*S;
+        realStack[s][1] = ceil(s/X);
+        realStack[s][2] = s - (realStack[s][1]-1) * X;
     end
     for s in SI
         realStack[s] = Array{Int64}(1,2);
-        sLoc = s - R*S;
+        sLoc = s - X * Y;
         if IOPointsPosition == "left-sided"
             realStack[s][1] = sLoc;
             realStack[s][2] = 0;
         elseif IOPointsPosition == "right-sided"
             realStack[s][1] = sLoc;
-            realStack[s][2] = S+1;
+            realStack[s][2] = X + 1;
         elseif IOPointsPosition == "two-sided"
-            if sLoc <= R
+            if sLoc <= Y
                 realStack[s][1] = sLoc;
                 realStack[s][2] = 0;
             else
-                realStack[s][1] = sLoc - R;
-                realStack[s][2] = S+1;
+                realStack[s][1] = sLoc - Y;
+                realStack[s][2] = X + 1;
             end
         elseif IOPointsPosition == "up-and-down"
-            if sLoc <= S
+            if sLoc <= X
                 realStack[s][1] = 0;
                 realStack[s][2] = sLoc;
             else
-                realStack[s][1] = R + 1;
-                realStack[s][2] = sLoc - S;
+                realStack[s][1] = Y + 1;
+                realStack[s][2] = sLoc - X;
             end
         end
     end
+    return (SB,SI,realStack);
+end
+
+################################################################################
+################################# IOPointsFun ##################################
+################################################################################
+## This function defines IOPoint the map such that
+## IOPoint[s] is the set of IO-points which are linked to stack s
+## innerPoints[r] is the set of points in the block served by IOpoints r
+## nameIOPoint[s] is for the purpose of printing the solution
+function IOPointsFun(SI,SB,realStack)
     IOPoints = Dict{Int64,Array{Int64}}();
     nameIOPoint = Dict{Int64,AbstractString}();
     innerPoints = Dict{Int64,Array{Int64}}();
-    for s in SI
-        innerPoints[s] = [];
-    end
     for s in SB
         if IOPointsPosition == "left-sided" || IOPointsPosition == "right-sided"
             IOPoints[s] = [SI[realStack[s][1]]];
         elseif IOPointsPosition == "two-sided"
-            IOPoints[s] = [SI[realStack[s][1]],SI[realStack[s][1]+R]];
+            IOPoints[s] = [SI[realStack[s][1]],SI[realStack[s][1]+Y]];
         elseif IOPointsPosition == "up-and-down"
-            IOPoints[s] = [SI[realStack[s][2]],SI[realStack[s][2]+S]];
+            IOPoints[s] = [SI[realStack[s][2]],SI[realStack[s][2]+X]];
         end
         for r in IOPoints[s]
-            append!(innerPoints[r],s);
+            if r in keys(innerPoints)
+                append!(innerPoints[r],s);
+            else
+                innerPoints[r] = [s];
+            end
         end
     end
     for s in SI
@@ -141,9 +155,9 @@ function initializeMainValues(R, S, IOPointsPosition)
             end
         elseif IOPointsPosition == "up-and-down"
             if realStack[s][1] == 0
-                nameIOPoint[s] = string(realStack[s][2]," up");
+                nameIOPoint[s] = string("up ",realStack[s][2]);
             else
-                nameIOPoint[s] = string(realStack[s][2]," down");
+                nameIOPoint[s] = string("down ",realStack[s][2]);
             end
         end
     end
@@ -153,187 +167,227 @@ function initializeMainValues(R, S, IOPointsPosition)
     elseif IOPointsPosition == "right-sided"
         groupIOPoint["right"] = SI;
     elseif IOPointsPosition == "two-sided"
-        groupIOPoint["left"] = SI[1:R];
-        groupIOPoint["right"] = SI[R+1:2*R];
+        groupIOPoint["left"] = SI[1:Y];
+        groupIOPoint["right"] = SI[Y+1:2*Y];
         groupIOPoint["left-and-right"] = SI;
     elseif IOPointsPosition == "up-and-down"
-        groupIOPoint["up"] = SI[1:S];
-        groupIOPoint["down"] = SI[S+1:2*S];
+        groupIOPoint["up"] = SI[1:X];
+        groupIOPoint["down"] = SI[X+1:2*X];
         groupIOPoint["up-and-down"] = SI;
     end
-    return (SB, SI, Stot, realStack, IOPoints, innerPoints, nameIOPoint, groupIOPoint);
+    return (IOPoints,innerPoints,nameIOPoint,groupIOPoint);
 end
 
 ################################################################################
-############################ initializeInitialCrane ############################
+############################## cranePositionFun ################################
 ################################################################################
-
 ## This function defines the initial position of the crane in Stot
-## If it is randomly taken then it uses randomInitialCraneFun
-## Otherwise, it takes the input file and depends on the IOPointsPosition.
+## It takes the input file cranePosition.csv and depends on the IOPointsPosition.
 ## If the position is not working with the configuration of the block, it throws
-## a message and it is taken randomly
-function initializeInitialCrane(randomInitialCrane, R, S, IOPointsPosition, SI, Stot)
-    if randomInitialCrane
-        posCraneInitial = Int64(rand(Stot));
-    else
-        craneInitial = readcsv("cranePosition.csv", header=false, Int64);
-        if 1 <= craneInitial[1] && craneInitial[1] <= R && 1 <= craneInitial[2] && craneInitial[2] <= S
-            posCraneInitial = S*(craneInitial[1]-1)+craneInitial[2];
+## an error.
+function cranePositionFun(X,Y,IOPointsPosition,testing,SB,SI)
+## For non-testing
+    if !testing
+        craneData = readcsv("cranePosition.csv", header=false);
+        craneInitial = [craneData[1,2],craneData[2,2]];
+        if typeof(craneInitial[1])==Int64 && typeof(craneInitial[2])==Int64
+            if 1 <= craneInitial[1] && craneInitial[1] <= Y && 1 <= craneInitial[2] && craneInitial[2] <= X
+                posCraneInitial = X * (craneInitial[1]-1) + craneInitial[2];
+            else
+                error("WARNING: The position provided in cranePosition.csv is not valid!");
+            end
         else
             if IOPointsPosition == "left-sided"
-                if craneInitial[1] != 0 || craneInitial[2] > R
-                    println("The input crane position is not possible with the structure of IO-points");
-                    println("We set the position randomly")
-                    if craneInitial[1] != 0
-                        println("The first component should be equal to 0");
-                    end
-                    if craneInitial[2] > R
-                        println("The second component should be less or equal than", R);
-                    end
-                    posCraneInitial = Int64(rand(Stot));
-                else
-                    posCraneInitial = SI[craneInitial[2]];
-                end
-            elseif IOPointsPosition == "right-sided"
-                if craneInitial[1] != S+1 || craneInitial[2] > R
-                    println("The input crane position is not possible with the structure of IO-points");
-                    println("We set the position randomly")
-                    if craneInitial[1] != S+1
-                        println("The first component should be equal to ", S+1);
-                    end
-                    if craneInitial[2] > R
-                        println("The second component should be less or equal than", R);
-                    end
-                    posCraneInitial = Int64(rand(Stot));
-                else
-                    posCraneInitial = SI[craneInitial[2]];
-                end
-            elseif IOPointsPosition == "two-sided"
-                if (craneInitial[1] != 0 && craneInitial[1] != S+1) || craneInitial[2] > R
-                    println("The input crane position is not possible with the structure of IO-points");
-                    println("We set the position randomly")
-                    if (craneInitial[1] != 0 && craneInitial[1] != S+1)
-                        println("The first component should be equal to ", 0, " or ", S+1);
-                    end
-                    if craneInitial[2] > R
-                        println("The second component should be less or equal than", R);
-                    end
-                    posCraneInitial = Int64(rand(Stot));
-                else
-                    if craneInitial[1] == 0
-                        posCraneInitial = SI[craneInitial[2]];
-                    else
-                        posCraneInitial = SI[R+craneInitial[2]];
-                    end
-                end
-            elseif IOPointsPosition == "up-and-down"
-                if (craneInitial[2] != 0 && craneInitial[2] != R+1) || craneInitial[1] > S
-                    println("The input crane position is not possible with the structure of IO-points");
-                    println("We set the position randomly")
-                    if craneInitial[1] > S
-                        println("The first component should be less or equal than", S);
-                    end
-                    if (craneInitial[2] != 0 && craneInitial[2] != R+1)
-                        println("The second component should be equal to ", 0, " or ", R+1);
-                    end
-                    posCraneInitial = Int64(rand(Stot));
-                else
-                    if craneInitial[2] == 0
+                if typeof(craneInitial[1])==Int64 && typeof(craneInitial[2])==SubString{String}
+                    if 1 <= craneInitial[1] && craneInitial[1] <= Y && craneInitial[2] == "left"
                         posCraneInitial = SI[craneInitial[1]];
                     else
-                        posCraneInitial = SI[S+craneInitial[1]];
+                        error("WARNING: The position provided in cranePosition.csv is not valid!");
                     end
+                else
+                    error("WARNING: The position provided in cranePosition.csv is not valid!");
+                end
+            elseif IOPointsPosition == "right-sided"
+                if typeof(craneInitial[1])==Int64 && typeof(craneInitial[2])==SubString{String}
+                    if 1 <= craneInitial[1] && craneInitial[1] <= Y && craneInitial[2] == "right"
+                        posCraneInitial = SI[craneInitial[1]];
+                    else
+                        error("WARNING: The position provided in cranePosition.csv is not valid!");
+                    end
+                else
+                    error("WARNING: The position provided in cranePosition.csv is not valid!");
+                end
+            elseif IOPointsPosition == "two-sided"
+                if typeof(craneInitial[1])==Int64 && typeof(craneInitial[2])==SubString{String}
+                    if 1 <= craneInitial[1] && craneInitial[1] <= Y && craneInitial[2] == "left"
+                        posCraneInitial = SI[craneInitial[1]];
+                    elseif 1 <= craneInitial[1] && craneInitial[1] <= Y && craneInitial[2] == "right"
+                        posCraneInitial = SI[craneInitial[1]+Y];
+                    else
+                        error("WARNING: The position provided in cranePosition.csv is not valid!");
+                    end
+                else
+                    error("WARNING: The position provided in cranePosition.csv is not valid!");
+                end
+            elseif IOPointsPosition == "up-and-down"
+                if typeof(craneInitial[1])==SubString{String} && typeof(craneInitial[2])==Int64
+                    if craneInitial[1] == "up" && 1 <= craneInitial[2] && craneInitial[2] <= X
+                        posCraneInitial = SI[craneInitial[2]];
+                    elseif craneInitial[1] == "down" && 1 <= craneInitial[2] && craneInitial[2] <= X
+                        posCraneInitial = SI[craneInitial[2]+X];
+                    else
+                        error("WARNING: The position provided in cranePosition.csv is not valid!");
+                    end
+                else
+                    error("WARNING: The position provided in cranePosition.csv is not valid!");
                 end
             end
         end
+## For testing
+    else
+        posCraneInitial = Int64(rand(1:length(SB)+length(SI)));
     end
-    return posCraneInitial;
+    return (posCraneInitial);
 end
 
 ################################################################################
-############################## randomRetrievalFun ##############################
+############################# productionMovesFun ###############################
 ################################################################################
-
-## This function generates n retrievals taken at random given the status of the
-## block. It also generates on which IO-point the containers can be delivered
-## The outputs are toRetrieve which is a 3 dimensional vector
+## This function initialize all the features of production moves.
+## The outputs are
+## 1) toRetrieve which is a 3 dimensional vector
 ## toRetrieve[m,1] is the row of m
 ## toRetrieve[m,2] is the stack of m
 ## toRetrieve[m,3] is the height of m
-## and toBeLoaded which is vector of string
+## 2) toBeLoaded which is vector of string
 ## toBeLoaded[m] is the group of IO-points the containers can be delivered
-## it can be left, right, left-and-right, up or down.
-## In the case of up-and-down, the group is taken at random.
-function randomRetrievalFun(n,heightsInitial,IOPointsPosition)
-    C = sum(heightsInitial);
-    toRetrieveList = sort(shuffle(collect(1:C))[1:n]);
-    toRetrieve = Array{Int64}(n,3);
-    toBeLoaded = Array{AbstractString}(n,1);
-    c = 0;
-    i = 1;
-    R = size(heightsInitial)[1];
-    S = size(heightsInitial)[2];
-    for r = 1:R
-        for s = 1:S
-            for h = 1:heightsInitial[r,s]
-                c += 1;
-                if i <= n && c == toRetrieveList[i]
-                    toRetrieve[i,1] = r;
-                    toRetrieve[i,2] = s;
-                    toRetrieve[i,3] = h;
-                    i += 1;
+## it can be left, right, up or down.
+## For testing and in the case of left-and-right and  up-and-down, the group is
+## taken based on the type of trucks for the container.
+## 3)
+function productionMovesFun(testing,X,Y,heightsInitial)
+    productiveMovesData = Array{Any,2}(0,0);
+## For non-testing
+    if !testing
+        productiveMovesData = readcsv("productiveMoves.csv", header=false);
+        N = size(productiveMovesData,1);
+        realToClusterOrder = zeros(Int64,N);
+        clusterToRealOrder = zeros(Int64,N);
+        n = 0;
+        for m = 1:N
+            if productiveMovesData[m,3] == "delivery"
+                n = n + 1;
+                realToClusterOrder[m] = n;
+                clusterToRealOrder[n] = m;
+            end
+        end
+        r = 0;
+        for m = 1:N
+            if productiveMovesData[m,3] == "storage"
+                r = r + 1;
+                realToClusterOrder[m] = n + r;
+                clusterToRealOrder[n + r] = m;
+            end
+        end
+## For testing
+    else
+        testingData = readcsv("Testing.csv", header=false);
+        N = testingData[4,2];
+        n = testingData[5,2];
+        productiveMovesData = Array{Any,2}(N,7);
+        clusterToRealOrder = randperm(N);
+        realToClusterOrder = zeros(Int64,N);
+        C = sum(heightsInitial);
+        toRetrieveList = shuffle(collect(1:C))[1:n];
+        for m = 1:N
+            c = clusterToRealOrder[m];
+            realToClusterOrder[c] = m;
+            productiveMovesData[c,1] = c;
+            if rand() < 0.5
+                productiveMovesData[c,2] = "internal";
+            else
+                productiveMovesData[c,2] = "external";
+            end
+            if m <= n
+                productiveMovesData[c,3] = "delivery";
+            else
+                productiveMovesData[c,3] = "storage";
+            end
+            if IOPointsPosition == "left-sided"
+                productiveMovesData[c,4] = "left"
+            elseif IOPointsPosition == "right-sided"
+                productiveMovesData[c,4] = "right"
+            elseif IOPointsPosition == "two-sided"
+                if productiveMovesData[c,2] == "internal"
+                    productiveMovesData[c,4] = "right"
+                else
+                    productiveMovesData[c,4] = "left"
+                end
+            elseif IOPointsPosition == "up-and-down"
+                if productiveMovesData[c,2] == "internal"
+                    productiveMovesData[c,4] = "up"
+                else
+                    productiveMovesData[c,4] = "down"
                 end
             end
-        end
-    end
-    for m = 1:n
-        if IOPointsPosition == "left-sided"
-            toBeLoaded[m] = "left"
-        elseif IOPointsPosition == "right-sided"
-            toBeLoaded[m] = "right"
-        elseif IOPointsPosition == "two-sided"
-            toBeLoaded[m] = "left-and-right"
-        elseif IOPointsPosition == "up-and-down"
-            if rand(1)[1] <= 0.5
-                toBeLoaded[m] = "up"
+            if m <= n
+                d = 0;
+                for r = 1:Y
+                    for s = 1:X
+                        for h = 1:heightsInitial[r,s]
+                            d += 1;
+                            if toRetrieveList[m] == d
+                                productiveMovesData[c,5] = r;
+                                productiveMovesData[c,6] = s;
+                                productiveMovesData[c,7] = h;
+                            end
+                        end
+                    end
+                end
             else
-                toBeLoaded[m] = "down"
+                productiveMovesData[c,5] = "";
+                productiveMovesData[c,6] = "";
+                productiveMovesData[c,7] = "";
             end
         end
     end
-    return (toRetrieve, toBeLoaded);
+## For non-testing
+    typeOfTruck = Array{AbstractString}(N,1);
+    toBeLoaded = Array{AbstractString}(n,1);
+    toRetrieve = Array{Int64}(n,3);
+    toBeUnloaded = Array{AbstractString}(N-n,1);
+    for m = 1:n
+        typeOfTruck[m] = productiveMovesData[clusterToRealOrder[m],2];
+        toBeLoaded[m] = productiveMovesData[clusterToRealOrder[m],4];
+        toRetrieve[m,1] = productiveMovesData[clusterToRealOrder[m],5];
+        toRetrieve[m,2] = productiveMovesData[clusterToRealOrder[m],6];
+        toRetrieve[m,3] = productiveMovesData[clusterToRealOrder[m],7];
+    end
+    for m = n+1:N
+        typeOfTruck[m] = productiveMovesData[clusterToRealOrder[m],2];
+        toBeUnloaded[m-n] = productiveMovesData[clusterToRealOrder[m],4];
+    end
+    return (N,n,realToClusterOrder,clusterToRealOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded);
 end
 
 ################################################################################
-############################# initializeRetrievals #############################
+############################## retrievalsBasicsFun #############################
 ################################################################################
-
 ## This function outputs
+## (stackOf,heightOf,loadOf) are the three inputs for retrievals for the Integer Program
 ## SR: the set of stacks where at least one retrieval occurs
 ## SO: the set of stacks in the block where no retrieval occurs
 ## SL: the set of I-O points in which a delivery can occur
 ## SY: the set of stacks corresponding to “end” points of moves with containers
 ## or “start” points of moves wihtout a container
-## (stackOf,heightOf,loadOf) are the three inputs for retrievals for the Integer Program
-## contStackIOPoint[[r,s]] is the list of containers which are deliverable from s to r
-function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, IOPointsPosition)
-    if randomRetrieval || n == 0
-        (toRetrieve, toBeLoaded) = randomRetrievalFun(n,heightsInitial,IOPointsPosition);
-    else
-        toRetrieveData = readcsv("retrievals.csv", header=false);
-        toRetrieve = toRetrieveData[:,1:3];
-        toRetrieve = Array{Int64}(toRetrieve);
-        toBeLoaded = toRetrieveData[:,4];
-        toBeLoaded = Array{AbstractString}(toBeLoaded);
-    end
+function retrievalsBasicsFun(X,n,SB,toBeLoaded,toRetrieve,groupIOPoint,IOPoints)
     stackOf = Dict{Int64,Int64}();
     heightOf = Dict{Int64,Int64}();
     loadOf = Dict{Int64,Array{Int64}}();
     SR = Set{Int64}();
     SL = Set{Int64}();
     for m = 1:n
-        stackOf[m] = S*(toRetrieve[m,1]-1)+toRetrieve[m,2];
+        stackOf[m] = X * (toRetrieve[m,1]-1) + toRetrieve[m,2];
         push!(SR,stackOf[m]);
         heightOf[m] = toRetrieve[m,3];
         loadOf[m] = intersect(groupIOPoint[toBeLoaded[m]],IOPoints[stackOf[m]]);
@@ -343,21 +397,30 @@ function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, 
     end
     SO = setdiff(SB,SR);
     SY = union(SB,SL);
-    contStackIOPoint = Dict{Array{Int64},Array{Int64}}();
+    return (stackOf,heightOf,loadOf,SR,SO,SL,SY);
+end
+
+################################################################################
+############################## reshufflesBasicsFun #############################
+################################################################################
+## This function computes
+## contMinHeightStack[s]: container m (=1:n) needed to be retrieved and the
+## bottommost of such containers.
+## artificialHeights[s]: height after each retrieval has been done and no stacking
+## blockingCont[m]: containers blocking m including itself
+function reshufflesBasicsFun(N,n,SR,SO,heightsInitial,realStack,stackOf,heightOf)
     contMinHeightStack = Dict{Int64,Int64}();
-    for s in SR
-        contMinHeightStack[s] = 0;
-        for r in IOPoints[s]
-            contStackIOPoint[[s,r]] = [];
-        end
-    end
     for m = 1:n
-        if contMinHeightStack[stackOf[m]] == 0 || heightOf[contMinHeightStack[stackOf[m]]] > heightOf[m]
+        if !(stackOf[m] in keys(contMinHeightStack)) || (stackOf[m] in keys(contMinHeightStack) && heightOf[contMinHeightStack[stackOf[m]]] > heightOf[m])
             contMinHeightStack[stackOf[m]] = m;
         end
-        for r in loadOf[m]
-            append!(contStackIOPoint[[stackOf[m],r]],m);
-        end
+    end
+    artificialHeights = Dict{Int64,Int64}();
+    for s in SR
+        artificialHeights[s] = heightOf[contMinHeightStack[s]] - 1;
+    end
+    for s in SO
+        artificialHeights[s] = heightsInitial[realStack[s][1],realStack[s][2]];
     end
     previousContToMove = Dict{Int64,Int64}();
     T = N;
@@ -381,48 +444,25 @@ function initializeRetrievals(n, S, SB, heightsInitial, IOPoints, groupIOPoint, 
         end
         previousContToMove[nextCont] = 0;
     end
-    previousCont = 0;
-    for m = n+1:N
-        previousContToMove[m] = previousCont;
-        previousCont = m;
+    blockingCont = Dict{Int64,Array{Int64}}();
+    for m = 1:n
+        blockingCont[m] = [m];
+        while previousContToMove[blockingCont[m][length(blockingCont[m])]] != 0
+            append!(blockingCont[m],previousContToMove[blockingCont[m][length(blockingCont[m])]]);
+        end
     end
-
-    return (T, SR, SO, SL, SY, stackOf, heightOf, loadOf, contStackIOPoint, contMinHeightStack, previousContToMove, toRetrieve, toBeLoaded);
+    return (T,contMinHeightStack,artificialHeights,previousContToMove,blockingCont);
 end
 
 ################################################################################
-############################## initializeStackings #############################
+################################ storageBasicsFun ##############################
 ################################################################################
-
-## This function defines the inputs from the stacking moves
-## If randomly selected, the selection is made as for the retrievals
-## unloadFrom[m]: is the set of IOPoints from which m can be stacked
-## SU: I-O points from which a stack can occur
-## SX: stacks corresponding to “start” points of moves with containers or “end”
-## points of moves wihtout a container
-## contStackableIOPoint[s]: the set of indices of containers which can be stacked
-## from IO-point s
-function initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint)
-    toBeUnloaded = Array{AbstractString}(N-n,1);
-    if randomStacking
-        for m = 1:N-n
-            if IOPointsPosition == "left-sided"
-                toBeUnloaded[m] = "left"
-            elseif IOPointsPosition == "right-sided"
-                toBeUnloaded[m] = "right"
-            elseif IOPointsPosition == "two-sided"
-                toBeUnloaded[m] = "left-and-right"
-            elseif IOPointsPosition == "up-and-down"
-                if rand(1)[1] <= 0.5
-                    toBeUnloaded[m] = "up"
-                else
-                    toBeUnloaded[m] = "down"
-                end
-            end
-        end
-    else
-        toBeUnloaded = readcsv("stackings.csv", header=false);
-    end
+## This function computes
+## unloadFrom[m] is the set of IO-points from which container m can be stacked
+## SU : union of unloadFrom[m]
+## SX : the set of stacks corresponding to “start” points of moves with containers
+## or “end” points of moves wihtout a container
+function storageBasicsFun(N,n,toBeUnloaded,groupIOPoint)
     unloadFrom = Dict{Int64,Array{Int64}}();
     SU = Set{Int64}();
     for m = n+1:N
@@ -432,16 +472,7 @@ function initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint
         end
     end
     SX = union(SR,SU);
-    contStackableIOPoint = Dict{Int64,Array{Int64}}();
-    for s in SU
-        contStackableIOPoint[s] = [];
-    end
-    for m = n+1:N
-        for r in unloadFrom[m]
-            append!(contStackableIOPoint[r],m);
-        end
-    end
-    return (unloadFrom, SU, SX, contStackableIOPoint, toBeUnloaded);
+    return (unloadFrom,SU,SX);
 end
 
 ################################################################################
@@ -453,8 +484,20 @@ end
 ## an action ending at stack s
 ## posteriorStacks[s] for s in SX: stacks which could potentially be visited after
 ## an action starting at stack s
-function antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint)
-    #SR,SB,SI,SO,IOPoint,correspondingIOPoint)
+## moveFrom[m]: stacks from which m could be moved
+## posteriorContStacks[[m,s]]: stacks in posteriorStacks[s] where m could be moved
+## from s
+function antePostStacks(N,T,SR,SU,SO,SL,IOPoints,innerPoints,unloadFrom,loadOf,stackOf)
+    contStackIOPoint = Dict{Array{Int64},Array{Int64}}();
+    for m = 1:n
+        for r in loadOf[m]
+            if [stackOf[m],r] in keys(contStackIOPoint)
+                append!(contStackIOPoint[[stackOf[m],r]],m);
+            else
+                contStackIOPoint[[stackOf[m],r]] = [m];
+            end
+        end
+    end
     anteriorStacks = Dict{Int64,Array{Int64}}();
     posteriorStacks = Dict{Int64,Array{Int64}}();
     for s in SR
@@ -481,20 +524,8 @@ function antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint)
     for s in SU
         posteriorStacks[s] = innerPoints[s];
     end
-    return (anteriorStacks,posteriorStacks);
-end
-
-################################################################################
-############################### defineMoveFromStack ############################
-################################################################################
-
-## This function defines the moveFrom structure which is defined by
-## moveFrom[m] is the stacks from which m could be moved
-
-function defineMoveFromStack(n,N,T,unloadFrom,loadOf,stackOf,heightOf,SB,SR,SO,contMinHeightStack,heightsInitial,realStack)
     moveFrom = Dict{Int64,Array{Int64}}();
     posteriorContStacks = Dict{Array{Int64},Array{Int64}}();
-    artificialHeights = Dict{Int64,Int64}();
     for m = 1:n
         moveFrom[m] = [stackOf[m]];
         for s in moveFrom[m]
@@ -513,20 +544,12 @@ function defineMoveFromStack(n,N,T,unloadFrom,loadOf,stackOf,heightOf,SB,SR,SO,c
             posteriorContStacks[[m,s]] = intersect(posteriorStacks[s],SB);
         end
     end
-    for s in SR
-        artificialHeights[s] = heightOf[contMinHeightStack[s]] - 1;
-    end
-    for s in SO
-        artificialHeights[s] = heightsInitial[realStack[s][1],realStack[s][2]];
-    end
-    return (moveFrom,posteriorContStacks,artificialHeights);
+    return (anteriorStacks,posteriorStacks,moveFrom,posteriorContStacks);
 end
-
 
 ################################################################################
 ################################### defineCosts ################################
 ################################################################################
-
 ## This function defines the appropriate costs for the Integer Program
 ## costMove[[s,r]]: cost of moving from stack s to r with a container (counting
 ## up and down)
@@ -535,7 +558,7 @@ end
 ## costToGo: the multiplicative factor associated with the expected number of
 ## blocking containers
 ## alpha[h]: the expected number of blocking containers in a stack with h containers
-function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack)
+function defineCosts(n,X,Y,Z,SX,SY,posCraneInitial,posteriorStacks,rowCost,stackCost,relocCost,realStack)
     costMove = Dict{Array{Int64},Float64}();
     for s in SX
         for r in posteriorStacks[s]
@@ -548,210 +571,190 @@ function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCo
             costPreMove[[s,r]] = rowCost * abs(realStack[s][1] - realStack[r][1]) + stackCost * abs(realStack[s][2] - realStack[r][2]);
         end
     end
-    costToGo = (n+1)/(R*S)*(2*(relocCost+min(rowCost,stackCost)));
-    # costToGo = 1/(R*S);
-    # costToGo = sqrt(N)/(R*S);
-    # costToGo = sqrt(T/(R*S));
-    # costToGo = T/sqrt(R*S);
-    alpha = Array{Float64}(H,1);
+    costToGo = round((n+1)/(X*Y)*(2*(relocCost+min(rowCost,stackCost))),4);
+    alpha = Array{Float64}(Z,1);
     sumInv = 0;
-    for h = 1:H
+    for h = 1:Z
         sumInv += 1/h;
         alpha[h] = h - sumInv;
     end
-    return (costMove, costPreMove, costToGo, alpha);
+    return (costMove,costPreMove,costToGo,alpha);
 end
 
 ################################################################################
 ################################## printProblem ################################
 ################################################################################
-
-## This function prints the problem inputs
-function printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial)
-
-    println("-------------------------------");
-    println("MAIN VALUES");
-    println("Number of rows : ", R);
-    println("Number of stack : ", S);
-    println("Number of tiers : ", H);
-    println("IO-points configuration : ", IOPointsPosition);
-    println("-------------------------------");
-    println("ACTIONS");
-    println("Number of actions : ", N);
-    println("Number of retrievals : ", n);
+## This function prints the problem inputs in a file called inputProblem.txt
+function printProblem(X,Y,Z,IOPointsPosition,N,n,realToClusterOrder,typeOfTruck,toBeLoaded,toRetrieve,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial)
+    f = open("inputProblem.txt","w")
+    write(f,string("-------------------------------\n"));
+    write(f,string("MAIN VALUES\n"));
+    write(f,string("Number of stack (X) : ", X, "\n"));
+    write(f,string("Number of rows (Y) : ", Y, "\n"));
+    write(f,string("Number of tiers (Z) : ", Z, "\n"));
+    write(f,string("IO-points configuration : ", IOPointsPosition, "\n"));
+    write(f,string("-------------------------------", "\n"));
+    write(f,string("PRODUCTIVE MOVES", "\n"));
+    write(f,string("DELIVERIES", "\n"));
+    write(f,string("Number of deliveries: ", n, "\n"));
     if n > 0
-        println("\tRow\tStack\tTier\tLoadOn",);
-        for m=1:n
-            println("Cont_",m,"\t",toRetrieve[m,1],"\t",toRetrieve[m,2],"\t",toRetrieve[m,3],"\t",toBeLoaded[m]);
+        write(f,string("Order\tTruckType\tTypeRequest\tLoadOn\tRow\tStack\tTier\n"));
+        for o = 1:N
+            m = realToClusterOrder[o];
+            if m <= n
+                write(f,string(clusterToRealOrder[m],"\t",typeOfTruck[m],"\tdelivery\t",toBeLoaded[m],"\t",toRetrieve[m,1],"\t",toRetrieve[m,2],"\t",toRetrieve[m,3],"\n"));
+            end
         end
     end
+    write(f,string("STORAGE", "\n"));
+    write(f,string("Number of storage : ", N-n,"\n"));
     if N - n > 0
-        println("\tUnloadFrom",);
-        for m=n+1:N
-            println("Cont_",m,"\t"toBeUnloaded[m-n]);
+        write(f,string("Order\tTruckType\tTypeRequest\tUnloadFrom\n"));
+        for o = 1:N
+            m = realToClusterOrder[o];
+            if m >= n+1 && m <= N
+                write(f,string(clusterToRealOrder[m],"\t",typeOfTruck[m],"\tstorage  \t",toBeUnloaded[m-n],"\n"));
+            end
         end
     end
-    println("-------------------------------");
-    println("COSTS");
-    println("Trolley Cost (X) : ", stackCost);
-    println("Wheel Cost (Y) : ", rowCost);
-    println("Hoisting Cost (Z) : ", relocCost);
-    println("Cost to Go : ", costToGo);
-    println("-------------------------------");
-    println("INITIAL STATE OF BLOCK");
+    write(f,string("-------------------------------\n"));
+    write(f,string("COSTS\n"));
+    write(f,string("Trolley Cost (X) : ", stackCost,"\n"));
+    write(f,string("Wheel Cost (Y) : ", rowCost,"\n"));
+    write(f,string("Hoisting Cost (Z) : ", relocCost,"\n"));
+    write(f,string("Cost to Go : ", costToGo,"\n"));
+    write(f,string("-------------------------------\n"));
+    write(f,string("INITIAL STATE OF BLOCK\n"));
     str = "";
     if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
         str = string(str,"\tLeft");
     end
-    for s = 1:S
+    for s = 1:X
         str = string(str,"\tStack_",s);
     end
     if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
         str = string(str,"\tRight");
     end
-    println(str);
+    write(f,string(str,"\n"));
     if IOPointsPosition == "up-and-down"
-        println("Seaside");
+        write(f,string("Seaside\n"));
     end
-    for r = 1:R
+    for r = 1:Y
         str = string("Row_",r);
         if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
             str = string(str,"\t");
         end
-        for s = 1:S
+        for s = 1:X
             str = string(str,"\t",Int64(round(heightsInitial[r,s])));
         end
         if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
             str = string(str,"\t");
         end
-        println(str);
+        write(f,string(str,"\n"));
     end
     if IOPointsPosition == "up-and-down"
-        println("Landside");
+        write(f,string("Landside\n"));
     end
-    println("-------------------------------");
-    println("INITIAL STATE OF CRANE");
-    println("Row\tStack",);
+    write(f,string("-------------------------------\n"));
+    write(f,string("INITIAL STATE OF CRANE\n"));
+    write(f,string("Row\tStack\n"));
     if posCraneInitial in SB
         craneInitial = Array{Int64}(1,2);
-        craneInitial[1,1] = ceil(posCraneInitial/S);
-        craneInitial[1,2] = posCraneInitial - (craneInitial[1,1]-1)*S;
-        println(craneInitial[1,1],"\t",craneInitial[1,2]);
+        craneInitial[1,1] = ceil(posCraneInitial/X);
+        craneInitial[1,2] = posCraneInitial - (craneInitial[1,1]-1)*X;
+        write(f,string(craneInitial[1,1],"\t",craneInitial[1,2],"\n"));
     else
-        posCraneInitialLoc = posCraneInitial - R*S;
+        posCraneInitialLoc = posCraneInitial - X*Y;
         if IOPointsPosition == "left-sided"
-            println(posCraneInitialLoc,"\tLeft");
+            write(f,string(posCraneInitialLoc,"\tleft\n"));
         elseif IOPointsPosition == "right-sided"
-            println(posCraneInitialLoc,"\tRight");
+            write(f,string(posCraneInitialLoc,"\tright\n"));
         elseif IOPointsPosition == "two-sided"
-            if posCraneInitialLoc <= R
-                println(posCraneInitialLoc,"\tLeft");
+            if posCraneInitialLoc <= Y
+                write(f,string(posCraneInitialLoc,"\lleft\n"));
             else
-                posCraneInitialLoc = posCraneInitialLoc - R;
-                println(posCraneInitialLoc,"\tRight");
+                posCraneInitialLoc = posCraneInitialLoc - Y;
+                write(f,string(posCraneInitialLoc,"\tright\n"));
             end
         elseif IOPointsPosition == "up-and-down"
-            if posCraneInitialLoc <= S
-                println("Seaside\t",posCraneInitialLoc);
+            if posCraneInitialLoc <= X
+                write(f,string("up\t",posCraneInitialLoc,"\n"));
             else
-                posCraneInitialLoc = posCraneInitialLoc - S;
-                println("Landside\t",posCraneInitialLoc);
+                posCraneInitialLoc = posCraneInitialLoc - X;
+                write(f,string("down\t",posCraneInitialLoc,"\n"));
             end
         end
     end
-    println("-------------------------------");
+    write(f,string("-------------------------------\n"));
+    close(f);
 end
 
 ################################################################################
-################################## printResult ################################
+################################## printResult #################################
 ################################################################################
 
-function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W)
-
-    updatedHeights = zeros(Int64, length(SB),T+1);
-    for s in SB
-        updatedHeights[s,1] = heightsInitial[realStack[s][1],realStack[s][2]];
-    end
-    for t = 1:T
-        startStack = 0;
-        endStack = 0;
-        for s in SX
-            for r in posteriorStacks[s]
-                if X[s,r,t] > 0.9
-                    if s in SB
-                        startStack = s;
-                    end
-                    if r in SB
-                        endStack = r;
-                    end
-                end
-            end
-        end
-        for s in SB
-            if s == startStack
-                updatedHeights[s,t+1] = updatedHeights[s,t] - 1;
-            elseif s == endStack
-                updatedHeights[s,t+1] = updatedHeights[s,t] + 1;
-            else
-                updatedHeights[s,t+1] = updatedHeights[s,t];
-            end
-        end
-    end
-    println("-------------------------------");
-    println("BLOCK STATE AT TIME 0");
+function printResult(IOPointsPosition,X,Y,heightsInitial,realStack,T,moveInit,posCraneInitial,nameIOPoint,SB,SX,SY,moveWithoutCont,posteriorStacks,moveWithCont,N,n,SL,SU,orderContStack,stackOf,unloadFrom,clusterToRealOrder,finalHeights)
+    f = open("Solution.txt","w")
+    write(f,string("-------------------------------\n"));
+    write(f,string("BLOCK STATE AT THE BEGINNING\n"));
     str = "";
     if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
         str = string(str,"\tLeft");
     end
-    for s = 1:S
+    for s = 1:X
         str = string(str,"\tStack_",s);
     end
     if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
         str = string(str,"\tRight");
     end
-    println(str);
+    write(f,string(str,"\n"));
     if IOPointsPosition == "up-and-down"
-        println("Seaside");
+        write(f,string("Seaside\n"));
     end
     sta = 0;
-    for r = 1:R
+    for r = 1:Y
         str = string("Row_",r);
         if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
             str = string(str,"\t");
         end
-        for s = 1:S
+        for s = 1:X
             sta += 1;
-            str = string(str,"\t",Int64(round(updatedHeights[sta,1])));
+            str = string(str,"\t",Int64(round(heightsInitial[realStack[sta][1],realStack[sta][2]])));
         end
         if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
             str = string(str,"\t");
         end
-        println(str);
+        write(f,string(str,"\n"));
     end
     if IOPointsPosition == "up-and-down"
-        println("Landside");
+        write(f,string("Landside\n"));
     end
+    lastCranePosition = Array{Any}(2,2);
+    lastCranePosition[1,1] = "Row";
+    lastCranePosition[2,1] = "Stack";
+    lastCranePosition[1,2] = "TBD";
+    lastCranePosition[2,2] = "TBD";
     for t=1:T
-        println("-----------------------------");
-        println("Time ", t);
+        write(f,string("-----------------------------\n"));
+        write(f,string("Time ", t,"\n"));
         if t == 1
             for r in SX
-                if DInit[r] > 0.9
+                if moveInit[r] > 0.9
                     if r == posCraneInitial
                         if r in SB
-                            println("Crane stays at ", realStack[r]);
+                            write(f,string("Crane stays at ", realStack[r],"\n"));
                         else
-                            println("Crane stays at ", nameIOPoint[r]);
+                            write(f,string("Crane stays at ", nameIOPoint[r],"\n"));
                         end
                     else
                         if posCraneInitial in SB && r in SB
-                            println("Crane moves from ", realStack[posCraneInitial], " to ", realStack[r]);
+                            write(f,string("Crane moves from ", realStack[posCraneInitial], " to ", realStack[r],"\n"));
                         elseif posCraneInitial in SB && !(r in SB)
-                            println("Crane moves from ", realStack[posCraneInitial], " to ", nameIOPoint[r]);
+                            write(f,string("Crane moves from ", realStack[posCraneInitial], " to ", nameIOPoint[r],"\n"));
                         elseif !(posCraneInitial in SB) && r in SB
-                            println("Crane moves from ", nameIOPoint[posCraneInitial], " to ", realStack[r]);
+                            write(f,string("Crane moves from ", nameIOPoint[posCraneInitial], " to ", realStack[r],"\n"));
                         else
-                            println("Crane moves from ", nameIOPoint[posCraneInitial], " to ", nameIOPoint[r]);
+                            write(f,string("Crane moves from ", nameIOPoint[posCraneInitial], " to ", nameIOPoint[r],"\n"));
                         end
                     end
                 end
@@ -759,22 +762,22 @@ function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,rea
         else
             for s in SY
                 for r in SX
-                    if D[s,r,t] > 0.9
+                    if moveWithoutCont[s,r,t] > 0.9
                         if r == s
                             if s in SB
-                                println("Crane stays at ", realStack[s]);
+                                write(f,string("Crane stays at ", realStack[s],"\n"));
                             else
-                                println("Crane stays at ", nameIOPoint[s]);
+                                write(f,string("Crane stays at ", nameIOPoint[s],"\n"));
                             end
                         else
                             if s in SB && r in SB
-                                println("Crane moves from ", realStack[s], " to ", realStack[r]);
+                                write(f,string("Crane moves from ", realStack[s], " to ", realStack[r],"\n"));
                             elseif s in SB && !(r in SB)
-                                println("Crane moves from ", realStack[s], " to ", nameIOPoint[r]);
+                                write(f,string("Crane moves from ", realStack[s], " to ", nameIOPoint[r],"\n"));
                             elseif !(s in SB) && r in SB
-                                println("Crane moves from ", nameIOPoint[s], " to ", realStack[r]);
+                                write(f,string("Crane moves from ", nameIOPoint[s], " to ", realStack[r],"\n"));
                             else
-                                println("Crane moves from ", nameIOPoint[s], " to ", nameIOPoint[r]);
+                                write(f,string("Crane moves from ", nameIOPoint[s], " to ", nameIOPoint[r],"\n"));
                             end
                         end
                     end
@@ -783,58 +786,79 @@ function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,rea
         end
         for s in SX
             for r in posteriorStacks[s]
-                if X[s,r,t] > 0.9
+                if moveWithCont[s,r,t] > 0.9
                     if s in SB && r in SB
-                        println("Relocate container from ", realStack[s], " to ", realStack[r]);
+                        write(f,string("Relocate container from ", realStack[s], " to ", realStack[r],"\n"));
                     elseif s in SU && r in SB
                         for m = n+1:N
-                            if s in unloadFrom[m] && W[m,s,t] > 0.9
-                                println("Stack container ", m," from ",nameIOPoint[s]," on ", realStack[r]);
+                            if s in unloadFrom[m] && orderContStack[m,s,t] > 0.9
+                                write(f,string("Stack container ", clusterToRealOrder[m]," from ",nameIOPoint[s]," on ", realStack[r],"\n"));
+                                if t == T
+                                    lastCranePosition[:,2] = realStack[r];
+                                end
                             end
                         end
                     elseif s in SB && r in SL
                         for m = 1:n
-                            if stackOf[m] == s && W[m,s,t] > 0.9
-                                println("Retrieve container ", m, " from ", realStack[s], " to ", nameIOPoint[r]);
+                            if stackOf[m] == s && orderContStack[m,s,t] > 0.9
+                                write(f,string("Retrieve container ", clusterToRealOrder[m], " from ", realStack[s], " to ", nameIOPoint[r],"\n"));
+                                if t == T
+                                    lastCranePosition[:,2] = split(nameIOPoint[r]);
+                                    if all(isnumber, lastCranePosition[1,2])
+                                        lastCranePosition[1,2] = parse(Int64,lastCranePosition[1,2]);
+                                    end
+                                    if all(isnumber, lastCranePosition[2,2])
+                                        lastCranePosition[2,2] = parse(Int64,lastCranePosition[2,2]);
+                                    end
+                                end
                             end
                         end
                     end
                 end
             end
         end
-        if t == T
-            str = "";
-            if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
-                str = string(str,"\tLeft");
-            end
-            for s = 1:S
-                str = string(str,"\tStack_",s);
-            end
-            if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
-                str = string(str,"\tRight");
-            end
-            println(str);
-            if IOPointsPosition == "up-and-down"
-                println("Seaside");
-            end
-            sta = 0;
-            for r = 1:R
-                str = string("Row_",r);
-                if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
-                    str = string(str,"\t");
-                end
-                for s = 1:S
-                    sta += 1;
-                    str = string(str,"\t",Int64(round(updatedHeights[sta,t+1])));
-                end
-                if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
-                    str = string(str,"\t");
-                end
-                println(str);
-            end
-            if IOPointsPosition == "up-and-down"
-                println("Landside");
-            end
-        end
     end
+    write(f,string("-----------------------------\n"));
+    write(f,string("BLOCK STATE AT THE END\n"));
+    str = "";
+    if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
+        str = string(str,"\tLeft");
+    end
+    for s = 1:X
+        str = string(str,"\tStack_",s);
+    end
+    if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
+        str = string(str,"\tRight");
+    end
+    write(f,string(str,"\n"));
+    if IOPointsPosition == "up-and-down"
+        write(f,string("Seaside\n"));
+    end
+    lastHeight = zeros(Int64,Y,X);
+    for s in SB
+        h = 0;
+        for z = 1:Z
+            h = h + z * finalHeights[s,z];
+        end
+        lastHeight[realStack[s][1],realStack[s][2]] = Int64(round(h));
+    end
+    for r = 1:Y
+        str = string("Row_",r);
+        if IOPointsPosition == "left-sided" || IOPointsPosition == "two-sided"
+            str = string(str,"\t");
+        end
+        for s = 1:X
+            str = string(str,"\t",lastHeight[r,s]);
+        end
+        if IOPointsPosition == "right-sided" || IOPointsPosition == "two-sided"
+            str = string(str,"\t");
+        end
+        write(f,string(str,"\n"));
+    end
+    if IOPointsPosition == "up-and-down"
+        write(f,string("Landside\n"));
+    end
+    close(f);
+    writecsv("newBlock.csv",lastHeight);
+    writecsv("newCranePosition.csv",lastCranePosition);
 end

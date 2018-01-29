@@ -1,41 +1,23 @@
---------------------- Problem Size ----------------------
+--------------------- Solver Inputs ---------------------
 
-NumberOfRows						,20
+LimitOfTime (in seconds)			,60
 
-NumberOfStacks						,6
+-------------------- Change of Order --------------------
 
-MaximumTiers						,5
+External trucks                     ,2
+
+Internal trucks                     ,2
+
+------ Position of Truck Loading/Unloading points -------
 
 IOPointsPosition					,right-sided
 
---------------------- NumberOfActions --------------------
+------------------- Crane Parameters --------------------
 
-NumberOfActions						,5
-
-NumberOfRetrievals					,3
-
------------------------- Costs --------------------------
+MaximumTiers						,4
 
 TrolleyCost (X)						,0.1
 
 WheelCost (Y)						,1
 
 HoistingCost (Z)					,1
-
----------------------- Solver Inputs ---------------------
-
-LimitOfTime (in seconds)			,60
-
-GapOfMIP (relative gap)				,0.00
-
-PrintSolver							,1
-
---------------------- Random Inputs ---------------------
-
-InitialPositionOfCrane				,true
-
-InitialHeights						,true
-
-RetrievalsAttributes				,true
-
-StackingsAttributes					,true

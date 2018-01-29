@@ -1,0 +1,56 @@
+-------------------------------
+MAIN VALUES
+Number of stack (X) : 7
+Number of rows (Y) : 20
+Number of tiers (Z) : 4
+IO-points configuration : right-sided
+-------------------------------
+PRODUCTIVE MOVES
+DELIVERIES
+Number of deliveries: 4
+Order	TruckType	TypeRequest	LoadOn	Row	Stack	Tier
+1	internal	delivery	right	10	5	3
+3	internal	delivery	right	2	2	4
+4	external	delivery	right	14	5	3
+7	external	delivery	right	2	5	4
+STORAGE
+Number of storage : 4
+Order	TruckType	TypeRequest	UnloadFrom
+2	internal	storage  	right
+5	external	storage  	right
+6	external	storage  	right
+8	internal	storage  	right
+-------------------------------
+COSTS
+Trolley Cost (X) : 0.1
+Wheel Cost (Y) : 1
+Hoisting Cost (Z) : 1
+Cost to Go : 0.0786
+-------------------------------
+INITIAL STATE OF BLOCK
+	Stack_1	Stack_2	Stack_3	Stack_4	Stack_5	Stack_6	Stack_7	Right
+Row_1	4	4	3	3	3	3	4	
+Row_2	2	4	4	2	4	2	3	
+Row_3	3	3	4	2	3	2	3	
+Row_4	4	3	4	4	4	4	3	
+Row_5	3	4	4	2	2	4	4	
+Row_6	4	2	2	3	4	4	2	
+Row_7	3	3	2	4	4	4	3	
+Row_8	4	4	2	2	3	4	4	
+Row_9	4	4	4	3	2	3	4	
+Row_10	2	3	2	4	3	4	4	
+Row_11	2	4	3	3	2	3	4	
+Row_12	4	3	4	3	4	2	4	
+Row_13	4	2	3	3	2	2	3	
+Row_14	3	2	3	4	3	2	2	
+Row_15	3	4	4	2	4	4	3	
+Row_16	3	2	2	3	3	4	3	
+Row_17	4	3	2	2	3	3	3	
+Row_18	4	4	3	2	4	4	4	
+Row_19	3	2	3	4	2	3	4	
+Row_20	4	3	4	3	3	3	4	
+-------------------------------
+INITIAL STATE OF CRANE
+Row	Stack
+5	4
+-------------------------------

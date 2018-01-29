@@ -1,37 +1,47 @@
 include("subFunctions.jl");
 
-blockingCont = Dict{Int64,Array{Int64}}();
-for m = 1:n
-    blockingCont[m] = [m];
-    while previousContToMove[blockingCont[m][length(blockingCont[m])]] != 0
-        append!(blockingCont[m],previousContToMove[blockingCont[m][length(blockingCont[m])]]);
-    end
-end
-
-solvingTime = 10;
-bestUBObj = Inf;
-bestLBObj = 0;
-bestPermutationProductive = zeros(N);
-bestStackCont = zeros(T);
-i = 1;
 startTime = now();
-while i <= 1000 && Int64(now() - startTime) <= limitOfTime * 1000
+
+println("iteration 1");
+bestPermutationProductive = realToClusterOrder[1:N];
+orderCont = fullOrderContainers(T, N, bestPermutationProductive, blockingCont);
+(bestLBObj,WLB,nonIntegralSolution) = LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
+(bestUBObj,bestStackCont) = UpperBound(bestLBObj,WLB,nonIntegralSolution,orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
+println("Best Solution: ", bestLBObj);
+
+vectorChangeOfOrder = zeros(Int64,N);
+for o = 1:N
+    vectorChangeOfOrder[o] = min(changeOfOrder[typeOfTruck[o]],N);
+end
+# nPermut = computeNumberOfOrders(N,vectorChangeOfOrder,0,sqrt(2*factorial(N)));
+# visitedPerms = collect(2:nPermut);
+
+i = 2;
+while i <= 1000 && now() - startTime <= Dates.Second(limitOfTime)
     println("iteration ", i);
-    permutationProductive = randperm(N);
-    # permutationProductive = [3 4 1 5 6 2 7];
-
+    permuOrder = zeros(N);
+    if false#nPermut <= sqrt(2*factorial(N))
+        index = rand(1:length(visitedPerms));
+        encode = visitedPerms[index];
+        deleteat!(visitedPerms,index);
+        permuOrder = decodeRec(encode,N,vectorChangeOfOrder,1:N);
+    else
+        permuOrder = randperm(N);
+        while isInfeasible(permuOrder,N,vectorChangeOfOrder)
+            permuOrder = randperm(N);
+        end
+    end
+    permutationProductive = realToClusterOrder[permuOrder];
     orderCont = fullOrderContainers(T, N, permutationProductive, blockingCont);
-
-    (LBObj,WLB,nonIntegralSolution) = LowerBound(orderCont, H, T, artificialHeights, moveFrom, SR, SB, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, contMinHeightStack, costMove, costPreMove, costToGo, alpha);
-
+    (LBObj,WLB,nonIntegralSolution) = LowerBound(orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
     if LBObj < bestUBObj
-        (UBObj,StackCont) = UpperBound(T,H,LBObj,artificialHeights,orderCont,moveFrom,WLB,nonIntegralSolution,SR, SB, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, contMinHeightStack, costMove, costPreMove, costToGo, alpha);
+        (UBObj,StackCont) = UpperBound(LBObj,WLB,nonIntegralSolution,orderCont,SX,posteriorStacks,T,SY,Z,moveFrom,costMove,costPreMove,posCraneInitial,costToGo,alpha,SR,contMinHeightStack,anteriorStacks,SB,artificialHeights);
         if bestUBObj > UBObj
             bestUBObj = UBObj;
             bestLBObj = LBObj;
             bestPermutationProductive = permutationProductive;
             bestStackCont = StackCont;
-            println("Best Solution: ", UBObj);
+            println("Best Solution: ", bestLBObj);
         end
     end
     i = i + 1;
