@@ -1,26 +1,26 @@
 --------------------- Problem Size ----------------------
 
-NumberOfRows						,10
+NumberOfRows						,1
 
-NumberOfStacks						,5
+NumberOfStacks						,2
 
 MaximumTiers						,4
 
-IOPointsPosition					,up-and-down
+IOPointsPosition					,left-sided
 
 --------------------- NumberOfActions --------------------
 
-NumberOfActions						,6
+NumberOfActions						,1
 
-NumberOfRetrievals					,1
+NumberOfRetrievals					,0
 
 ------------------------ Costs --------------------------
 
-TrolleyCost (X)						,0.1
+TrolleyCost (X)						,1
 
-WheelCost (Y)						,1
+WheelCost (Y)						,0
 
-HoistingCost (Z)					,1
+HoistingCost (Z)					,0
 
 ---------------------- Solver Inputs ---------------------
 
