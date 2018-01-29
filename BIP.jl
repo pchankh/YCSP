@@ -1,6 +1,6 @@
 
 
-function MIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime)
+function BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime)
 
     IPModel = Model(solver = GurobiSolver(OutputFlag = printSolver,MIPGap = gapOfMIP, TimeLimit = limitOfTime));
 
@@ -10,10 +10,11 @@ function MIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeU
 
     @variable(IPModel, w[m = 1:T, s in moveFrom[m], t = 1:T], Bin);
 
-    @variable(IPModel, 0 <= x[s in SX,r in posteriorStacks[s],1:T] <= 1);
-    @variable(IPModel, 0 <= dInit[SX] <= 1);
-    @variable(IPModel, 0 <= d[SY,SX,2:T] <= 1);
-    @variable(IPModel, 0 <= finalh[SB,0:H] <= 1);
+    @variable(IPModel, x[s in SX,r in posteriorStacks[s],1:T], Bin);
+    @variable(IPModel, dInit[SX], Bin);
+    @variable(IPModel, d[SY,SX,2:T], Bin);
+    @variable(IPModel, finalh[SB,0:H], Bin);
+
 
     #####################################################################
     ############################# Incumbent #############################
@@ -126,7 +127,7 @@ function MIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeU
     end
 
     for s in SR
-        for t = 1:T-1
+        for t = 1:T
             @constraint(IPModel, sum(w[contMinHeightStack[s],s,u] for u = 1:t-1) - sum(x[r,s,t] for r in anteriorStacks[s]) >= 0);
         end
     end

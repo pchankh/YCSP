@@ -485,6 +485,28 @@ function antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint)
 end
 
 ################################################################################
+############################### defineMoveFromStack ############################
+################################################################################
+
+## This function defines the moveFrom structure which is defined by
+## moveFrom[m] is the stacks from which m could be moved
+
+function defineMoveFromStack(n,N,T,unloadFrom,stackOf)
+    moveFrom = Dict{Int64,Array{Int64}}();
+    for m = 1:n
+        moveFrom[m] = [stackOf[m]];
+    end
+    for m = n+1:N
+        moveFrom[m] = unloadFrom[m];
+    end
+    for m = N+1:T
+        moveFrom[m] = [stackOf[m]];
+    end
+    return moveFrom;
+end
+
+
+################################################################################
 ################################### defineCosts ################################
 ################################################################################
 
@@ -517,7 +539,7 @@ function defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCo
     sumInv = 0;
     for h = 1:H
         sumInv += 1/h;
-        alpha[h] = h + sumInv;
+        alpha[h] = h - sumInv;
     end
     return (costMove, costPreMove, costToGo, alpha);
 end
@@ -749,13 +771,13 @@ function printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,rea
                         println("Relocate container from ", realStack[s], " to ", realStack[r]);
                     elseif s in SU && r in SB
                         for m = n+1:N
-                            if s in unloadFrom[m] && W[m,t] > 0.9
+                            if s in unloadFrom[m] && W[m,s,t] > 0.9
                                 println("Stack container ", m," from ",nameIOPoint[s]," on ", realStack[r]);
                             end
                         end
                     elseif s in SB && r in SL
                         for m = 1:n
-                            if stackOf[m] == s && W[m,t] > 0.9
+                            if stackOf[m] == s && W[m,s,t] > 0.9
                                 println("Retrieve container ", m, " from ", realStack[s], " to ", nameIOPoint[r]);
                             end
                         end

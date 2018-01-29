@@ -2,6 +2,7 @@ using JuMP, Gurobi, MathProgBase, DataStructures
 cd(dirname(Base.source_path()));
 include("auxilaryFunctions.jl");
 include("MIP.jl");
+include("BIP.jl");
 
 parametersData = readcsv("Parameters.csv", header=false);
 
@@ -32,37 +33,20 @@ randomStacking = parametersData[21,2];
 
 posCraneInitial = initializeInitialCrane(randomInitialCrane, R, S, IOPointsPosition, SI, Stot);
 
-(T,SR,SO,SL,SY,stackOf,heightOf,loadOf,contStackIOPoint,contMinHeightStack,previousContToMove,toRetrieve, toBeLoaded) = initializeRetrievals(n,S,SB,heightsInitial,IOPoints, groupIOPoint,IOPointsPosition);
+(T,SR,SO,SL,SY,stackOf,heightOf,loadOf,contStackIOPoint,contMinHeightStack,previousContToMove,toRetrieve,toBeLoaded) = initializeRetrievals(n,S,SB,heightsInitial,IOPoints, groupIOPoint,IOPointsPosition);
 
 (unloadFrom, SU, SX, contStackableIOPoint, toBeUnloaded) = initializeStackings(N,n,randomStacking,IOPointsPosition,SR,groupIOPoint);
 
 (anteriorStacks,posteriorStacks) = antePostStacks(SR,SU,SO,SL,IOPoints,innerPoints,contStackIOPoint);
 
+moveFrom = defineMoveFromStack(n,N,T,unloadFrom,stackOf);
+
 (costMove, costPreMove, costToGo, alpha) = defineCosts(N, R, S, H, SX, SY, posCraneInitial, posteriorStacks, rowCost, stackCost, relocCost, realStack);
 
 printProblem(R,S,H,IOPointsPosition,N,n,toRetrieve,toBeLoaded,toBeUnloaded,stackCost,rowCost,relocCost,costToGo,heightsInitial,posCraneInitial);
 
-# (Z,P,timeToSolveLP) = subProblem(Wgiven, H, N, n, heightsInitial, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
+(X,DInit,D,finalHeights,W,obj,timeToSolve) = MIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
 
-(X,DInit,D,finalHeights,W,obj,timeToSolve) = MIP(H, N, n, heightsInitial, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
-
-# (X,DInit,D,finalHeights,W,timeToSolve) = MIP_2(H, N, n, heightsInitial, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
+(X_b,DInit_b,D_b,finalHeights_b,W_b,obj_b,timeToSolve_b) = BIP(H, N, n, heightsInitial, moveFrom, stackOf, heightOf, loadOf, toBeUnloaded, realStack, IOPoints, SR, SB, SO, SX, SY, anteriorStacks, posteriorStacks, posCraneInitial, T, contMinHeightStack, previousContToMove,  costMove, costPreMove, costToGo, alpha, printSolver, gapOfMIP, limitOfTime);
 
 # printResult(S,R,N,n,posCraneInitial,IOPointsPosition,heightsInitial,realStack,stackOf,unloadFrom,SB,SU,SL,SX,SY,posteriorStacks,nameIOPoint,T,X,DInit,D,W);
-
-stacktry = 50
-h = heightsInitial[realStack[stacktry][1],realStack[stacktry][2]];
-for t =1:T
-    for r in anteriorStacks[stacktry]
-        h += X[r,stacktry,t]
-        if X[r,stacktry,t] > 0.5
-            println(t);
-        end
-    end
-end
-
-for s in SX
-    for r in posteriorStacks[s]
-        println(X[s,r,3]);
-    end
-end
