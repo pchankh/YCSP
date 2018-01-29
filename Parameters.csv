@@ -1,41 +1,42 @@
---------------------- NumberOfActions --------------------
-
-NumberOfActions						,7
-
-NumberOfStacks						,4
-
----------------------- Solver Inputs ---------------------
-
-limitOfTime (in seconds)			,60
-
-gapOfMIP (relative gap)				,0.00
-
-printSolver							,1
-
---------------------- Random Inputs ---------------------
-
-InitialPositionOfCrane				,false
-
-InitialHeights						,true
-
-NumberOfActions						,false
-
-PositionsOfRetrievals				,true
-
------------------------- Costs --------------------------
-
-CostOfRelocation (Z)				,2
-
-CostOfMovingBetweenRows	(Y)			,1
-
-CostOfMovingInRows (X)				,0.1
-
 --------------------- Problem Size ----------------------
-
-MaximumTiers						,4
 
 NumberOfRows						,29
 
 NumberOfStacks						,7
 
-IOPointsPosition					,left-sided
+MaximumTiers						,4
+
+IOPointsPosition					,up-and-down
+
+--------------------- NumberOfActions --------------------
+
+NumberOfActions						,10
+
+NumberOfRetrievals					,4
+
+------------------------ Costs --------------------------
+
+TrolleyCost (X)						,0.1
+
+WheelCost (Y)						,1
+
+HoistingCost (Z)					,2
+
+---------------------- Solver Inputs ---------------------
+
+LimitOfTime (in seconds)			,60
+
+GapOfMIP (relative gap)				,0.00
+
+PrintSolver							,1
+
+--------------------- Random Inputs ---------------------
+
+InitialPositionOfCrane				,true
+
+InitialHeights						,true
+
+RetrievalsAttributes				,true
+
+StackingsAttributes					,true
+
