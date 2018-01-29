@@ -4,6 +4,6 @@ NumberOfStacks (X)					,7
 
 NumberOfRows (Y)					,20
 
-NumberOfActions						,7
+NumberOfActions						,8
 
-NumberOfRetrievals					,0
+NumberOfRetrievals					,4
