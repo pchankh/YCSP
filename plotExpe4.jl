@@ -29,8 +29,8 @@ for N in NList
     p = p + 1;
     dfError[:N][p] = N;
     dfError[:mean_Cost][p] = mean(dataN);
-    dfError[:conf_down][p] = mean(dataN)+1.645std(dataN);
-    dfError[:conf_up][p] = mean(dataN)-1.645std(dataN);
+    dfError[:conf_down][p] = mean(dataN)+0.310*std(dataN);
+    dfError[:conf_up][p] = mean(dataN)-0.310*std(dataN);
 end
 
 

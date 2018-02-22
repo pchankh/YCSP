@@ -49,8 +49,8 @@ for method in methodnonGamma
     dfError[:gamma][p] = gamma;
     dfError[:mean_Cost][p] = mean(dataMethod);
     baseLine = mean(dataMethod);
-    dfError[:conf_down][p] = mean(dataMethod)+1.645std(dataMethod);
-    dfError[:conf_up][p] = mean(dataMethod)-1.645std(dataMethod);
+    dfError[:conf_down][p] = mean(dataMethod)+0.310*std(dataMethod);
+    dfError[:conf_up][p] = mean(dataMethod)-0.310*std(dataMethod);
     if dfError[:Algorithms][p] == "IP" || dfError[:Algorithms][p] == "Baseline"
         dfError[:non_Opt][p] = string(round(nonOpt,2));
     else
@@ -79,8 +79,8 @@ for method in methodGamma
         end
         dfError[:gamma][p] = gamma;
         dfError[:mean_Cost][p] = mean(dataMethod);
-        dfError[:conf_down][p] = mean(dataMethod)+1.645std(dataMethod);
-        dfError[:conf_up][p] = mean(dataMethod)-1.645std(dataMethod);
+        dfError[:conf_down][p] = mean(dataMethod)+0.310*std(dataMethod);
+        dfError[:conf_up][p] = mean(dataMethod)-0.310*std(dataMethod);
         if dfError[:Algorithms][p] == "IP" || dfError[:Algorithms][p] == "Baseline"
             dfError[:non_Opt][p] = string(round(nonOpt,2));
         else

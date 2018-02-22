@@ -28,8 +28,8 @@ for d in Deltas
     end
     dfError[:delta][d+1] = d;
     dfError[:mean_Cost][d+1] = mean(dataDelta);
-    dfError[:conf_down][d+1] = mean(dataDelta)+1.645std(dataDelta);
-    dfError[:conf_up][d+1] = mean(dataDelta)-1.645std(dataDelta);
+    dfError[:conf_down][d+1] = mean(dataDelta)+0.310*std(dataDelta);
+    dfError[:conf_up][d+1] = mean(dataDelta)-0.310*std(dataDelta);
 end
 
 
